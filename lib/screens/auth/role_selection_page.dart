@@ -1,0 +1,342 @@
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+import '../../config/app_config.dart';
+import '../../services/auth_service.dart';
+
+enum UserRole {
+  customer,
+  partner,
+  driver,
+}
+
+class RoleSelectionPage extends StatefulWidget {
+  final String name;
+  final String email;
+  final String phone;
+  final String password;
+
+  const RoleSelectionPage({
+    super.key,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.password,
+  });
+
+  @override
+  State<RoleSelectionPage> createState() => _RoleSelectionPageState();
+}
+
+class _RoleSelectionPageState extends State<RoleSelectionPage> {
+  final AuthService _authService = AuthService();
+
+  UserRole _selectedRole = UserRole.customer;
+  bool _isLoading = false;
+
+  Future<void> _createAccount() async {
+    if (_isLoading) {
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final String role;
+
+      switch (_selectedRole) {
+        case UserRole.customer:
+          role = 'customer';
+          break;
+        case UserRole.partner:
+          role = 'partner';
+          break;
+        case UserRole.driver:
+          role = 'driver';
+          break;
+      }
+
+      await _authService.registerUser(
+        name: widget.name,
+        email: widget.email,
+        phone: widget.phone,
+        password: widget.password,
+        role: role,
+      );
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Account created successfully!'),
+        ),
+      );
+
+      if (role == 'customer') {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/customer-dashboard',
+          (route) => false,
+        );
+      } else if (role == 'partner') {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/partner-dashboard',
+          (route) => false,
+        );
+      } else {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/driver-dashboard',
+          (route) => false,
+        );
+      }
+    } on FirebaseAuthException catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      String message;
+
+      switch (e.code) {
+        case 'email-already-in-use':
+          message = 'This email is already registered.';
+          break;
+
+        case 'invalid-email':
+          message = 'Please enter a valid email address.';
+          break;
+
+        case 'weak-password':
+          message = 'Please choose a stronger password.';
+          break;
+
+        case 'network-request-failed':
+          message =
+              'Network error. Please check your internet connection.';
+          break;
+
+        default:
+          message = e.message ?? 'Unable to create your account.';
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } on FirebaseException catch (e) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            e.message ?? 'Unable to save your account information.',
+          ),
+        ),
+      );
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Something went wrong. Please try again.',
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Widget _roleCard({
+    required UserRole role,
+    required IconData icon,
+    required String title,
+    required String description,
+  }) {
+    final bool selected = _selectedRole == role;
+    final theme = Theme.of(context);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(18),
+      onTap: _isLoading
+          ? null
+          : () {
+              setState(() {
+                _selectedRole = role;
+              });
+            },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: selected
+                ? theme.colorScheme.primary
+                : theme.dividerColor,
+            width: selected ? 2 : 1,
+          ),
+          color: selected
+              ? theme.colorScheme.primary.withValues(alpha: 0.07)
+              : theme.cardColor,
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 54,
+              height: 54,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.primary.withValues(alpha: 0.10),
+              ),
+              child: Icon(
+                icon,
+                color: selected
+                    ? Colors.white
+                    : theme.colorScheme.primary,
+                size: 27,
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    description,
+                    style: theme.textTheme.bodySmall,
+                  ),
+                ],
+              ),
+            ),
+            Radio<UserRole>(
+              value: role,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Choose Account Type'),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+          child: RadioGroup<UserRole>(
+            groupValue: _selectedRole,
+            onChanged: (value) {
+              if (value == null || _isLoading) {
+                return;
+              }
+
+              setState(() {
+                _selectedRole = value;
+              });
+            },
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'How will you use ${AppConfig.appName}?',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Choose your account type.',
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 28),
+
+                _roleCard(
+                  role: UserRole.customer,
+                  icon: Icons.person_outline,
+                  title: 'Customer',
+                  description:
+                      'Book rides, travel, rental, carpool and cargo services.',
+                ),
+
+                const SizedBox(height: 16),
+
+                _roleCard(
+                  role: UserRole.partner,
+                  icon: Icons.business_center_outlined,
+                  title: 'Partner',
+                  description:
+                      'Manage vehicles, drivers, rides, rentals and travel services.',
+                ),
+
+                const SizedBox(height: 16),
+
+                _roleCard(
+                  role: UserRole.driver,
+                  icon: Icons.drive_eta_outlined,
+                  title: 'Driver',
+                  description:
+                      'Receive assigned trips and manage your driving work.',
+                ),
+
+                const SizedBox(height: 30),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: _isLoading ? null : _createAccount,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 24,
+                            height: 24,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.5,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Text(
+                            'Create Account',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

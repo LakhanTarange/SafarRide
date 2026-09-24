@@ -1,0 +1,1161 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+
+class DriverDashboard extends StatefulWidget {
+  const DriverDashboard({super.key});
+
+  @override
+  State<DriverDashboard> createState() =>
+      _DriverDashboardState();
+}
+
+class _DriverDashboardState extends State<DriverDashboard> {
+  int _currentIndex = 0;
+
+  final List<Widget> _pages = const [
+    _DriverHomePage(),
+    _DriverTripsPage(),
+    _DriverProfilePage(),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Driver Dashboard'),
+        actions: [
+          IconButton(
+            tooltip: 'Notifications',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text(
+                    'No new notifications.',
+                  ),
+                ),
+              );
+            },
+            icon: const Icon(
+              Icons.notifications_none,
+            ),
+          ),
+        ],
+      ),
+      body: _pages[_currentIndex],
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: _currentIndex,
+        onDestinationSelected: (int index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        destinations: const [
+          NavigationDestination(
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.route_outlined),
+            selectedIcon: Icon(Icons.route),
+            label: 'Trips',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.person_outline),
+            selectedIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DriverHomePage extends StatelessWidget {
+  const _DriverHomePage();
+
+  @override
+  Widget build(BuildContext context) {
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    return SafeArea(
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: user == null
+            ? const Stream<
+                QuerySnapshot<Map<String, dynamic>>>.empty()
+            : FirebaseFirestore.instance
+                .collection('drivers')
+                .where(
+                  'email',
+                  isEqualTo: user.email,
+                )
+                .limit(1)
+                .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState ==
+              ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          String driverName = 'Driver';
+          String vehicleNumber = '-';
+          String vehicleType = '-';
+          String kycStatus = 'pending';
+
+          if (snapshot.hasData &&
+              snapshot.data!.docs.isNotEmpty) {
+            final Map<String, dynamic> data =
+                snapshot.data!.docs.first.data();
+
+            driverName =
+                data['name']?.toString() ?? 'Driver';
+
+            vehicleNumber =
+                data['vehicleNumber']?.toString() ?? '-';
+
+            vehicleType =
+                data['vehicleType']?.toString() ?? '-';
+
+            kycStatus =
+                data['kycStatus']?.toString() ?? 'pending';
+          }
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              20,
+              20,
+              30,
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Hello, $driverName 👋',
+                  style: const TextStyle(
+                    fontSize: 26,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Manage your trips and driving activity.',
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                _DriverInfoCard(
+                  vehicleType: vehicleType,
+                  vehicleNumber: vehicleNumber,
+                  kycStatus: kycStatus,
+                ),
+
+                const SizedBox(height: 20),
+
+                const Text(
+                  'Driver Status',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+
+                const SizedBox(height: 12),
+
+                Row(
+                  children: [
+                    Expanded(
+                      child: _StatusCard(
+                        icon: Icons.online_prediction,
+                        title: 'Online',
+                        subtitle: 'Ready for trips',
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _StatusCard(
+                        icon: Icons.route,
+                        title: 'Trips',
+                        subtitle: 'View assigned',
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: 24),
+
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () {
+                      ScaffoldMessenger.of(context)
+                          .showSnackBar(
+                        const SnackBar(
+                          content: Text(
+                            'Online/offline control will be connected to trip availability.',
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(
+                      Icons.power_settings_new,
+                    ),
+                    label: const Text(
+                      'Driver Availability',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _DriverTripsPage extends StatelessWidget {
+  const _DriverTripsPage();
+
+  CollectionReference<Map<String, dynamic>>
+      get _bookings =>
+          FirebaseFirestore.instance
+              .collection('bookings');
+
+  String _serviceName(String? serviceType) {
+    switch (serviceType) {
+      case 'car':
+        return 'Car';
+      case 'bike':
+        return 'Bike';
+      case 'auto':
+        return 'Auto';
+      case 'travels':
+        return 'Travels';
+      case 'cargo':
+        return 'Cargo';
+      case 'rental':
+        return 'Rental';
+      default:
+        return 'Trip';
+    }
+  }
+
+  IconData _serviceIcon(String? serviceType) {
+    switch (serviceType) {
+      case 'car':
+        return Icons.directions_car;
+      case 'bike':
+        return Icons.two_wheeler;
+      case 'auto':
+        return Icons.local_taxi;
+      case 'travels':
+        return Icons.directions_bus;
+      case 'cargo':
+        return Icons.local_shipping;
+      case 'rental':
+        return Icons.car_rental;
+      default:
+        return Icons.route;
+    }
+  }
+
+  Future<void> _startTrip(
+    BuildContext context,
+    String bookingId,
+  ) async {
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      _showMessage(
+        context,
+        'Driver login required.',
+      );
+      return;
+    }
+
+    try {
+      await _bookings.doc(bookingId).update({
+        'status': 'started',
+        'tripStartedBy': user.uid,
+        'tripStartedAt':
+            FieldValue.serverTimestamp(),
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      });
+
+      if (!context.mounted) return;
+
+      _showMessage(
+        context,
+        'Trip started successfully.',
+      );
+    } on FirebaseException catch (e) {
+      if (!context.mounted) return;
+
+      _showMessage(
+        context,
+        e.message ?? 'Unable to start trip.',
+      );
+    }
+  }
+
+  Future<void> _completeTrip(
+    BuildContext context,
+    String bookingId,
+  ) async {
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      _showMessage(
+        context,
+        'Driver login required.',
+      );
+      return;
+    }
+
+    final bool? confirmed =
+        await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text(
+            'Complete Trip',
+          ),
+          content: const Text(
+            'Are you sure this trip is completed?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  false,
+                );
+              },
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                Navigator.pop(
+                  dialogContext,
+                  true,
+                );
+              },
+              child: const Text('Complete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true) return;
+
+    try {
+      await _bookings.doc(bookingId).update({
+        'status': 'completed',
+        'completedBy': user.uid,
+        'completedAt':
+            FieldValue.serverTimestamp(),
+        'updatedAt':
+            FieldValue.serverTimestamp(),
+      });
+
+      if (!context.mounted) return;
+
+      _showMessage(
+        context,
+        'Trip completed successfully.',
+      );
+    } on FirebaseException catch (e) {
+      if (!context.mounted) return;
+
+      _showMessage(
+        context,
+        e.message ?? 'Unable to complete trip.',
+      );
+    }
+  }
+
+  void _showDetails(
+    BuildContext context,
+    Map<String, dynamic> data,
+  ) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              10,
+              20,
+              30,
+            ),
+            child: Column(
+              crossAxisAlignment:
+                  CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Trip Details',
+                  style: Theme.of(sheetContext)
+                      .textTheme
+                      .headlineSmall
+                      ?.copyWith(
+                        fontWeight:
+                            FontWeight.bold,
+                      ),
+                ),
+                const SizedBox(height: 20),
+                _DetailRow(
+                  label: 'Booking ID',
+                  value:
+                      data['bookingId']?.toString() ??
+                          '-',
+                ),
+                _DetailRow(
+                  label: 'Service',
+                  value: _serviceName(
+                    data['serviceType']?.toString(),
+                  ),
+                ),
+                _DetailRow(
+                  label: 'Status',
+                  value:
+                      data['status']?.toString() ??
+                          '-',
+                ),
+                _DetailRow(
+                  label: 'From',
+                  value: data['from']?.toString() ??
+                      data['pickup']?.toString() ??
+                      '-',
+                ),
+                _DetailRow(
+                  label: 'To',
+                  value: data['to']?.toString() ??
+                      data['drop']?.toString() ??
+                      '-',
+                ),
+                _DetailRow(
+                  label: 'Date',
+                  value: data['bookingDate']
+                          ?.toString() ??
+                      data['journeyDate']
+                          ?.toString() ??
+                      '-',
+                ),
+                _DetailRow(
+                  label: 'Time',
+                  value: data['bookingTime']
+                          ?.toString() ??
+                      data['journeyTime']
+                          ?.toString() ??
+                      '-',
+                ),
+                _DetailRow(
+                  label: 'Vehicle',
+                  value:
+                      data['vehicleNumber']
+                              ?.toString() ??
+                          '-',
+                ),
+                _DetailRow(
+                  label: 'Fare',
+                  value:
+                      data['fare']?.toString() ??
+                          '0',
+                ),
+                _DetailRow(
+                  label: 'Payment',
+                  value: data['paymentStatus']
+                          ?.toString() ??
+                      'pending',
+                ),
+                _DetailRow(
+                  label: 'Notes',
+                  value:
+                      data['notes']?.toString() ??
+                          '-',
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showMessage(
+    BuildContext context,
+    String message,
+  ) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    if (user == null) {
+      return const Center(
+        child: Text(
+          'Please login as a driver.',
+        ),
+      );
+    }
+
+    return StreamBuilder<
+        QuerySnapshot<Map<String, dynamic>>>(
+      stream: _bookings
+          .where(
+            'driverId',
+            isEqualTo: user.uid,
+          )
+          .where(
+            'status',
+            whereIn: [
+              'driver_assigned',
+              'started',
+            ],
+          )
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding:
+                  const EdgeInsets.all(24),
+              child: Text(
+                'Unable to load assigned trips.\n\n'
+                '${snapshot.error}',
+                textAlign: TextAlign.center,
+              ),
+            ),
+          );
+        }
+
+        if (snapshot.connectionState ==
+            ConnectionState.waiting) {
+          return const Center(
+            child: CircularProgressIndicator(),
+          );
+        }
+
+        final documents =
+            snapshot.data?.docs ?? [];
+
+        if (documents.isEmpty) {
+          return const Center(
+            child: Padding(
+              padding:
+                  EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize:
+                    MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.route_outlined,
+                    size: 72,
+                  ),
+                  SizedBox(height: 16),
+                  Text(
+                    'No Assigned Trips',
+                    style: TextStyle(
+                      fontSize: 22,
+                      fontWeight:
+                          FontWeight.bold,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'Trips assigned to you will appear here.',
+                    textAlign:
+                        TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        return ListView.separated(
+          padding:
+              const EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            24,
+          ),
+          itemCount: documents.length,
+          separatorBuilder:
+              (_, index) =>
+                  const SizedBox(
+            height: 12,
+          ),
+          itemBuilder:
+              (context, index) {
+            final document =
+                documents[index];
+
+            final data =
+                document.data();
+
+            final String status =
+                data['status']
+                        ?.toString() ??
+                    'driver_assigned';
+
+            final String serviceType =
+                data['serviceType']
+                        ?.toString() ??
+                    '';
+
+            final String from =
+                data['from']?.toString() ??
+                    data['pickup']
+                        ?.toString() ??
+                    '-';
+
+            final String to =
+                data['to']?.toString() ??
+                    data['drop']
+                        ?.toString() ??
+                    '-';
+
+            return Card(
+              child: Padding(
+                padding:
+                    const EdgeInsets.all(
+                  16,
+                ),
+                child: Column(
+                  children: [
+                    Row(
+                      children: [
+                        CircleAvatar(
+                          child: Icon(
+                            _serviceIcon(
+                              serviceType,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 12,
+                        ),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment:
+                                CrossAxisAlignment
+                                    .start,
+                            children: [
+                              Text(
+                                _serviceName(
+                                  serviceType,
+                                ),
+                                style:
+                                    const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight:
+                                      FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 3,
+                              ),
+                              Text(
+                                data['bookingId']
+                                        ?.toString() ??
+                                    document.id,
+                                style:
+                                    TextStyle(
+                                  fontSize: 12,
+                                  color: Colors
+                                      .grey
+                                      .shade600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Container(
+                          padding:
+                              const EdgeInsets
+                                  .symmetric(
+                            horizontal: 10,
+                            vertical: 6,
+                          ),
+                          decoration:
+                              BoxDecoration(
+                            borderRadius:
+                                BorderRadius
+                                    .circular(
+                              20,
+                            ),
+                            color: Theme.of(
+                              context,
+                            )
+                                .colorScheme
+                                .primary
+                                .withValues(
+                                  alpha: 0.10,
+                                ),
+                          ),
+                          child: Text(
+                            status ==
+                                    'started'
+                                ? 'STARTED'
+                                : 'ASSIGNED',
+                            style:
+                                const TextStyle(
+                              fontSize: 10,
+                              fontWeight:
+                                  FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 16,
+                    ),
+                    _TripLocationRow(
+                      icon:
+                          Icons.my_location,
+                      label: 'From',
+                      value: from,
+                    ),
+                    const SizedBox(
+                      height: 8,
+                    ),
+                    _TripLocationRow(
+                      icon: Icons
+                          .location_on_outlined,
+                      label: 'To',
+                      value: to,
+                    ),
+                    const SizedBox(
+                      height: 14,
+                    ),
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons
+                              .calendar_month_outlined,
+                          size: 18,
+                        ),
+                        const SizedBox(
+                          width: 8,
+                        ),
+                        Expanded(
+                          child: Text(
+                            data['bookingDate']
+                                    ?.toString() ??
+                                data['journeyDate']
+                                    ?.toString() ??
+                                '-',
+                          ),
+                        ),
+                        const Icon(
+                          Icons.access_time,
+                          size: 18,
+                        ),
+                        const SizedBox(
+                          width: 8,
+                        ),
+                        Text(
+                          data['bookingTime']
+                                  ?.toString() ??
+                              data['journeyTime']
+                                  ?.toString() ??
+                              '-',
+                        ),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 16,
+                    ),
+                    Row(
+                      children: [
+                        Expanded(
+                          child:
+                              OutlinedButton(
+                            onPressed: () {
+                              _showDetails(
+                                context,
+                                data,
+                              );
+                            },
+                            child: const Text(
+                              'Details',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        Expanded(
+                          child:
+                              FilledButton.icon(
+                            onPressed:
+                                status ==
+                                        'started'
+                                    ? () {
+                                        _completeTrip(
+                                          context,
+                                          data['bookingId']
+                                                  ?.toString() ??
+                                              document.id,
+                                        );
+                                      }
+                                    : () {
+                                        _startTrip(
+                                          context,
+                                          data['bookingId']
+                                                  ?.toString() ??
+                                              document.id,
+                                        );
+                                      },
+                            icon: Icon(
+                              status ==
+                                      'started'
+                                  ? Icons
+                                      .check_circle_outline
+                                  : Icons
+                                      .play_arrow,
+                            ),
+                            label: Text(
+                              status ==
+                                      'started'
+                                  ? 'Complete'
+                                  : 'Start Trip',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _DriverProfilePage extends StatelessWidget {
+  const _DriverProfilePage();
+
+  @override
+  Widget build(BuildContext context) {
+    final User? user =
+        FirebaseAuth.instance.currentUser;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize:
+              MainAxisSize.min,
+          children: [
+            const CircleAvatar(
+              radius: 42,
+              child: Icon(
+                Icons.person,
+                size: 42,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              user?.displayName ??
+                  'Driver',
+              style: const TextStyle(
+                fontSize: 22,
+                fontWeight:
+                    FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              user?.email ??
+                  'No email available',
+            ),
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: () async {
+                await FirebaseAuth.instance
+                    .signOut();
+
+                if (!context.mounted) {
+                  return;
+                }
+
+                Navigator.of(context)
+                    .pushNamedAndRemoveUntil(
+                  '/',
+                  (route) => false,
+                );
+              },
+              icon: const Icon(
+                Icons.logout,
+              ),
+              label: const Text(
+                'Logout',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DriverInfoCard extends StatelessWidget {
+  final String vehicleType;
+  final String vehicleNumber;
+  final String kycStatus;
+
+  const _DriverInfoCard({
+    required this.vehicleType,
+    required this.vehicleNumber,
+    required this.kycStatus,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final bool verified =
+        kycStatus == 'verified';
+
+    return Card(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Driver Information',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight:
+                    FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                const Icon(
+                  Icons.directions_car_outlined,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Vehicle: $vehicleType',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                const Icon(
+                  Icons.confirmation_number_outlined,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Number: $vehicleNumber',
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Icon(
+                  verified
+                      ? Icons.verified
+                      : Icons.pending_outlined,
+                  color: verified
+                      ? Colors.green
+                      : Colors.orange,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'KYC: ${verified ? 'Verified' : kycStatus}',
+                  style: TextStyle(
+                    fontWeight:
+                        FontWeight.w600,
+                    color: verified
+                        ? Colors.green
+                        : Colors.orange,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StatusCard extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String subtitle;
+
+  const _StatusCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding:
+            const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment:
+              CrossAxisAlignment.start,
+          children: [
+            Icon(
+              icon,
+              size: 30,
+              color: Theme.of(context)
+                  .colorScheme
+                  .primary,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(
+                fontWeight:
+                    FontWeight.bold,
+                fontSize: 17,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              subtitle,
+              style: TextStyle(
+                fontSize: 12,
+                color:
+                    Colors.grey.shade600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TripLocationRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+
+  const _TripLocationRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment:
+          CrossAxisAlignment.start,
+      children: [
+        Icon(
+          icon,
+          size: 19,
+          color: Theme.of(context)
+              .colorScheme
+              .primary,
+        ),
+        const SizedBox(width: 10),
+        Text(
+          '$label: ',
+          style: const TextStyle(
+            fontWeight:
+                FontWeight.w600,
+          ),
+        ),
+        Expanded(
+          child: Text(value),
+        ),
+      ],
+    );
+  }
+}
+
+class _DetailRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _DetailRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding:
+          const EdgeInsets.only(
+        bottom: 12,
+      ),
+      child: Row(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 105,
+            child: Text(
+              label,
+              style: TextStyle(
+                color:
+                    Colors.grey.shade600,
+                fontWeight:
+                    FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style:
+                  const TextStyle(
+                fontWeight:
+                    FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}

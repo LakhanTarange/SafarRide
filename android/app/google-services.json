@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "258453212439",
+    "project_id": "safarride-ff41d",
+    "storage_bucket": "safarride-ff41d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:258453212439:android:bccf298be61703aac3bb52",
+        "android_client_info": {
+          "package_name": "com.example.safarride"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDykQy_p8ll6dUrMDC6POHWb0Rx2rjwdR0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
