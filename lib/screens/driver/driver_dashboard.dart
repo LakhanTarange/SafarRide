@@ -416,6 +416,33 @@ class _DriverHomePageState extends State<_DriverHomePage> {
 
     final bool newAvailability = !currentAvailability;
 
+    if (newAvailability) {
+      final String banStatus = _driverData?['banStatus']?.toString() ?? '';
+      final String accountStatus = _driverData?['accountStatus']?.toString() ?? '';
+
+      if (banStatus == 'blacklisted' || accountStatus == 'banned') {
+        _showMessage(
+          context,
+          'Your account has been permanently blocked. Contact support.',
+        );
+        return;
+      }
+
+      if (banStatus == 'suspended') {
+        final dynamic suspendedUntilRaw = _driverData?['suspendedUntil'];
+
+        if (suspendedUntilRaw is Timestamp &&
+            suspendedUntilRaw.toDate().isAfter(DateTime.now())) {
+          _showMessage(
+            context,
+            'Your account is suspended until '
+            '${suspendedUntilRaw.toDate().toString().split('.').first}.',
+          );
+          return;
+        }
+      }
+    }
+
     final String vehicleId = _driverData?['vehicleId']?.toString().trim() ?? '';
 
     if (newAvailability) {
