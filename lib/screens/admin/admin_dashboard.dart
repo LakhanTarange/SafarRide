@@ -367,4 +367,17 @@ class _AdminDashboardState extends State<AdminDashboard> {
                     const SizedBox(height: 8),
                     const Text(
                       'This section is only for admins.',
-                      textAlign:
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          return _adminBody();
+        },
+      ),
+    );
+  }
+}
