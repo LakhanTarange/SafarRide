@@ -7,6 +7,7 @@ import 'add_vehicle_page.dart';
 import 'driver_list_page.dart';
 import 'partner_trips_page.dart';
 import 'vehicle_list_page.dart';
+import 'ride_list_page.dart';
 
 class PartnerDashboard extends StatefulWidget {
   const PartnerDashboard({super.key});

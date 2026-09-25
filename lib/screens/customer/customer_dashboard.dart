@@ -3,9 +3,11 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_config.dart';
 import '../profile/profile_page.dart';
+import 'browse_carpool_page.dart';
 import 'carpool_page.dart';
 import 'cargo_booking_page.dart';
 import 'my_bookings_page.dart';
+import 'my_carpools_page.dart';
 import 'nearby_vehicles_page.dart';
 import 'rental_booking_page.dart';
 import 'travels_booking_page.dart';
@@ -99,6 +101,63 @@ class _CustomerHomePage extends StatelessWidget {
 
   void _openPage(BuildContext context, Widget page) {
     Navigator.push(context, MaterialPageRoute(builder: (context) => page));
+  }
+
+  void _openCarpoolOptions(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Carpool',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_circle_outline),
+                title: const Text('Post a Carpool'),
+                subtitle: const Text('Share your route and seats'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _openPage(context, const CarpoolPage());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.search),
+                title: const Text('Browse Carpools'),
+                subtitle: const Text('Find and join a carpool'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _openPage(context, const BrowseCarpoolPage());
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.list_alt_outlined),
+                title: const Text('My Carpools'),
+                subtitle: const Text('Manage what you posted'),
+                onTap: () {
+                  Navigator.pop(sheetContext);
+                  _openPage(context, const MyCarpoolsPage());
+                },
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -205,7 +264,7 @@ class _CustomerHomePage extends StatelessWidget {
                   title: 'Carpool',
                   subtitle: 'Share your journey',
                   onTap: () {
-                    _openPage(context, const CarpoolPage());
+                    _openCarpoolOptions(context);
                   },
                 ),
 
