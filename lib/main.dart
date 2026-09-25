@@ -6,7 +6,6 @@ import 'config/theme.dart';
 import 'firebase_options.dart';
 import 'screens/auth/welcome_page.dart';
 import 'screens/customer/customer_dashboard.dart';
-import 'screens/driver/driver_dashboard.dart';
 import 'screens/partner/partner_dashboard.dart';
 import 'screens/profile/profile_page.dart';
 
@@ -33,13 +32,8 @@ class SafarRideApp extends StatelessWidget {
       routes: {
         '/customer-dashboard': (context) =>
             const CustomerDashboard(),
-
         '/partner-dashboard': (context) =>
             const PartnerDashboard(),
-
-        '/driver-dashboard': (context) =>
-            const DriverDashboard(),
-
         '/profile': (context) =>
             const ProfilePage(),
       },

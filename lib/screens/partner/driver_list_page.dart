@@ -10,23 +10,31 @@ class DriverListPage extends StatefulWidget {
   const DriverListPage({super.key});
 
   @override
-  State<DriverListPage> createState() => _DriverListPageState();
+  State<DriverListPage> createState() =>
+      _DriverListPageState();
 }
 
-class _DriverListPageState extends State<DriverListPage> {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+class _DriverListPageState
+    extends State<DriverListPage> {
+  final FirebaseAuth _auth =
+      FirebaseAuth.instance;
+
+  final FirebaseFirestore _firestore =
+      FirebaseFirestore.instance;
 
   Future<void> _openAddDriverPage() async {
     await Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => const AddDriverPage(),
+        builder: (context) =>
+            const AddDriverPage(),
       ),
     );
   }
 
-  Future<void> _openKycPage(String driverId) async {
+  Future<void> _openKycPage(
+    String driverId,
+  ) async {
     await Navigator.push(
       context,
       MaterialPageRoute(
@@ -37,246 +45,409 @@ class _DriverListPageState extends State<DriverListPage> {
     );
   }
 
+  Future<List<QueryDocumentSnapshot<
+      Map<String, dynamic>>>> _getOwnerVehicles(
+    String ownerId,
+  ) async {
+    final snapshot = await _firestore
+        .collection('vehicles')
+        .where(
+          'ownerId',
+          isEqualTo: ownerId,
+        )
+        .get();
+
+    return snapshot.docs;
+  }
+
   Future<void> _assignVehicle({
     required String driverId,
     required String driverName,
   }) async {
-    final User? user = _auth.currentUser;
+    final User? user =
+        _auth.currentUser;
 
     if (user == null) {
       return;
     }
 
-    final QuerySnapshot<Map<String, dynamic>> vehicleSnapshot =
-        await _firestore
-            .collection('vehicles')
-            .where(
-              'ownerId',
-              isEqualTo: user.uid,
-            )
-            .get();
-
-    if (!mounted) {
-      return;
-    }
-
-    final List<QueryDocumentSnapshot<Map<String, dynamic>>> vehicles =
-        vehicleSnapshot.docs;
-
-    if (vehicles.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'No vehicles available. Please add a vehicle first.',
-          ),
-        ),
+    try {
+      final vehicles =
+          await _getOwnerVehicles(
+        user.uid,
       );
-      return;
-    }
 
-    String? selectedVehicleId;
-
-    final String? result = await showDialog<String>(
-      context: context,
-      builder: (dialogContext) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
-            return AlertDialog(
-              title: const Text('Assign Vehicle'),
-              content: DropdownButtonFormField<String>(
-                initialValue: selectedVehicleId,
-                decoration: const InputDecoration(
-                  labelText: 'Select Vehicle',
-                  prefixIcon: Icon(
-                    Icons.directions_car_outlined,
-                  ),
-                ),
-                items: vehicles.map((vehicle) {
-                  final Map<String, dynamic> data =
-                      vehicle.data();
-
-                  final String vehicleId =
-                      data['vehicleId']?.toString() ?? vehicle.id;
-
-                  final String vehicleNumber =
-                      data['vehicleNumber']?.toString() ?? '-';
-
-                  final String vehicleType =
-                      data['vehicleType']?.toString() ?? '';
-
-                  final String displayText =
-                      vehicleType.isEmpty
-                          ? vehicleNumber
-                          : '$vehicleNumber - $vehicleType';
-
-                  return DropdownMenuItem<String>(
-                    value: vehicleId,
-                    child: Text(displayText),
-                  );
-                }).toList(),
-                onChanged: (value) {
-                  setDialogState(() {
-                    selectedVehicleId = value;
-                  });
-                },
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(dialogContext);
-                  },
-                  child: const Text('Cancel'),
-                ),
-                FilledButton(
-                  onPressed: selectedVehicleId == null
-                      ? null
-                      : () {
-                          Navigator.pop(
-                            dialogContext,
-                            selectedVehicleId,
-                          );
-                        },
-                  child: const Text('Assign'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
-
-    if (result == null || result.isEmpty) {
-      return;
-    }
-
-    final QuerySnapshot<Map<String, dynamic>> selectedVehicleSnapshot =
-        await _firestore
-            .collection('vehicles')
-            .where(
-              'vehicleId',
-              isEqualTo: result,
-            )
-            .where(
-              'ownerId',
-              isEqualTo: user.uid,
-            )
-            .limit(1)
-            .get();
-
-    if (selectedVehicleSnapshot.docs.isEmpty) {
       if (!mounted) {
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Selected vehicle was not found.'),
-        ),
+      if (vehicles.isEmpty) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No vehicles available. Please add a vehicle first.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      String? selectedVehicleId;
+
+      final String? result =
+          await showDialog<String>(
+        context: context,
+        builder: (dialogContext) {
+          return StatefulBuilder(
+            builder:
+                (context, setDialogState) {
+              return AlertDialog(
+                title: const Text(
+                  'Assign Vehicle',
+                ),
+                content:
+                    DropdownButtonFormField<
+                        String>(
+                  initialValue:
+                      selectedVehicleId,
+                  decoration:
+                      const InputDecoration(
+                    labelText:
+                        'Select Vehicle',
+                    prefixIcon: Icon(
+                      Icons
+                          .directions_car_outlined,
+                    ),
+                  ),
+                  items: vehicles.map(
+                    (vehicle) {
+                      final data =
+                          vehicle.data();
+
+                      final String vehicleId =
+                          data['vehicleId']
+                                  ?.toString() ??
+                              vehicle.id;
+
+                      final String number =
+                          data['vehicleNumber']
+                                  ?.toString() ??
+                              '-';
+
+                      final String type =
+                          data['vehicleType']
+                                  ?.toString() ??
+                              'Vehicle';
+
+                      final String brand =
+                          data['brand']
+                                  ?.toString() ??
+                              '';
+
+                      final String model =
+                          data['model']
+                                  ?.toString() ??
+                              '';
+
+                      return DropdownMenuItem<
+                          String>(
+                        value: vehicleId,
+                        child: Text(
+                          '$number • $type • $brand $model'
+                              .trim(),
+                          overflow:
+                              TextOverflow.ellipsis,
+                        ),
+                      );
+                    },
+                  ).toList(),
+                  onChanged: (value) {
+                    setDialogState(() {
+                      selectedVehicleId =
+                          value;
+                    });
+                  },
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      Navigator.pop(
+                        dialogContext,
+                      );
+                    },
+                    child:
+                        const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed:
+                        selectedVehicleId ==
+                                null
+                            ? null
+                            : () {
+                                Navigator.pop(
+                                  dialogContext,
+                                  selectedVehicleId,
+                                );
+                              },
+                    child:
+                        const Text('Assign'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
       );
-      return;
-    }
 
-    final DocumentSnapshot<Map<String, dynamic>> vehicleDocument =
-        selectedVehicleSnapshot.docs.first;
+      if (result == null ||
+          result.isEmpty) {
+        return;
+      }
 
-    final Map<String, dynamic> vehicleData =
-        vehicleDocument.data() ?? <String, dynamic>{};
+      QueryDocumentSnapshot<
+          Map<String, dynamic>>? selectedVehicle;
 
-    final String vehicleId =
-        vehicleData['vehicleId']?.toString() ??
-            vehicleDocument.id;
+      for (final vehicle in vehicles) {
+        final data = vehicle.data();
 
-    final String vehicleNumber =
-        vehicleData['vehicleNumber']?.toString() ?? '-';
+        final id = data['vehicleId']
+                ?.toString() ??
+            vehicle.id;
 
-    final String previousDriverId =
-        vehicleData['driverId']?.toString() ?? '';
+        if (id == result) {
+          selectedVehicle = vehicle;
+          break;
+        }
+      }
 
-    final WriteBatch batch = _firestore.batch();
+      if (selectedVehicle == null) {
+        return;
+      }
 
-    final DocumentReference<Map<String, dynamic>> driverReference =
-        _firestore.collection('drivers').doc(driverId);
+      final vehicleData =
+          selectedVehicle.data();
 
-    final DocumentReference<Map<String, dynamic>> vehicleReference =
-        vehicleDocument.reference;
+      final String vehicleId =
+          vehicleData['vehicleId']
+                  ?.toString() ??
+              selectedVehicle.id;
 
-    if (previousDriverId.isNotEmpty &&
-        previousDriverId != driverId) {
-      final DocumentReference<Map<String, dynamic>>
-          previousDriverReference =
+      final String vehicleNumber =
+          vehicleData['vehicleNumber']
+                  ?.toString() ??
+              '-';
+
+      final String? previousDriverId =
+          vehicleData['driverId']
+              ?.toString();
+
+      final WriteBatch batch =
+          _firestore.batch();
+
+      final driverReference =
           _firestore
               .collection('drivers')
-              .doc(previousDriverId);
+              .doc(driverId);
 
-      batch.update(previousDriverReference, {
-        'vehicleId': null,
-        'vehicleNumber': null,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-    }
+      final vehicleReference =
+          selectedVehicle.reference;
 
-    batch.update(driverReference, {
-      'vehicleId': vehicleId,
-      'vehicleNumber': vehicleNumber,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+      // Remove old driver from this vehicle.
+      if (previousDriverId != null &&
+          previousDriverId.isNotEmpty &&
+          previousDriverId != driverId) {
+        final previousDriverReference =
+            _firestore
+                .collection('drivers')
+                .doc(previousDriverId);
 
-    batch.update(vehicleReference, {
-      'driverId': driverId,
-      'driverName': driverName,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+        batch.update(
+          previousDriverReference,
+          {
+            'vehicleId': null,
+            'vehicleNumber': null,
+            'updatedAt':
+                FieldValue.serverTimestamp(),
+          },
+        );
+      }
 
-    await batch.commit();
+      // Update driver.
+      batch.update(
+        driverReference,
+        {
+          'vehicleId': vehicleId,
+          'vehicleNumber':
+              vehicleNumber,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        },
+      );
 
-    if (!mounted) {
-      return;
-    }
+      // Update vehicle.
+      batch.update(
+        vehicleReference,
+        {
+          'driverId': driverId,
+          'driverDocumentId':
+              driverId,
+          'driverName': driverName,
+          'driverPhone':
+              await _getDriverPhone(
+            driverId,
+          ),
+          'driverKycStatus':
+              await _getDriverKycStatus(
+            driverId,
+          ),
+          'isAvailable': false,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        },
+      );
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          '$vehicleNumber assigned to $driverName.',
+      await batch.commit();
+
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            '$vehicleNumber assigned to $driverName.',
+          ),
         ),
-      ),
-    );
+      );
+    } on FirebaseException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            error.message ??
+                'Unable to assign vehicle.',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to assign vehicle: $error',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
+  Future<String?> _getDriverPhone(
+    String driverId,
+  ) async {
+    final document = await _firestore
+        .collection('drivers')
+        .doc(driverId)
+        .get();
+
+    return document.data()?['phone']
+        ?.toString();
+  }
+
+  Future<String?> _getDriverKycStatus(
+    String driverId,
+  ) async {
+    final document = await _firestore
+        .collection('drivers')
+        .doc(driverId)
+        .get();
+
+    return document.data()?['kycStatus']
+        ?.toString();
   }
 
   Future<void> _removeVehicle({
     required String driverId,
     required String vehicleId,
   }) async {
-    final WriteBatch batch = _firestore.batch();
+    try {
+      final WriteBatch batch =
+          _firestore.batch();
 
-    final DocumentReference<Map<String, dynamic>> driverReference =
-        _firestore.collection('drivers').doc(driverId);
+      final driverReference =
+          _firestore
+              .collection('drivers')
+              .doc(driverId);
 
-    final DocumentReference<Map<String, dynamic>> vehicleReference =
-        _firestore.collection('vehicles').doc(vehicleId);
+      final vehicleReference =
+          _firestore
+              .collection('vehicles')
+              .doc(vehicleId);
 
-    batch.update(driverReference, {
-      'vehicleId': null,
-      'vehicleNumber': null,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+      batch.update(
+        driverReference,
+        {
+          'vehicleId': null,
+          'vehicleNumber': null,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        },
+      );
 
-    batch.update(vehicleReference, {
-      'driverId': null,
-      'driverName': null,
-      'updatedAt': FieldValue.serverTimestamp(),
-    });
+      batch.update(
+        vehicleReference,
+        {
+          'driverId': null,
+          'driverDocumentId': null,
+          'driverName': null,
+          'driverPhone': null,
+          'driverKycStatus': null,
+          'isAvailable': false,
+          'updatedAt':
+              FieldValue.serverTimestamp(),
+        },
+      );
 
-    await batch.commit();
+      await batch.commit();
 
-    if (!mounted) {
-      return;
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Vehicle removed from driver.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      ScaffoldMessenger.of(context)
+          .showSnackBar(
+        SnackBar(
+          content: Text(
+            'Unable to remove vehicle: $error',
+          ),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Vehicle removed from driver.'),
-      ),
-    );
   }
 
   Future<void> _showVehicleOptions({
@@ -285,7 +456,8 @@ class _DriverListPageState extends State<DriverListPage> {
     required String? vehicleId,
     required String? vehicleNumber,
   }) async {
-    if (vehicleId == null || vehicleId.isEmpty) {
+    if (vehicleId == null ||
+        vehicleId.isEmpty) {
       await _assignVehicle(
         driverId: driverId,
         driverName: driverName,
@@ -293,19 +465,24 @@ class _DriverListPageState extends State<DriverListPage> {
       return;
     }
 
-    final String? action = await showModalBottomSheet<String>(
+    final String? action =
+        await showModalBottomSheet<String>(
       context: context,
       builder: (sheetContext) {
         return SafeArea(
           child: Column(
-            mainAxisSize: MainAxisSize.min,
+            mainAxisSize:
+                MainAxisSize.min,
             children: [
               ListTile(
                 leading: const CircleAvatar(
-                  child: Icon(Icons.directions_car),
+                  child: Icon(
+                    Icons.directions_car,
+                  ),
                 ),
                 title: Text(
-                  vehicleNumber ?? 'Assigned Vehicle',
+                  vehicleNumber ??
+                      'Assigned Vehicle',
                 ),
                 subtitle: Text(
                   'Currently assigned to $driverName',
@@ -316,7 +493,9 @@ class _DriverListPageState extends State<DriverListPage> {
                 leading: const Icon(
                   Icons.swap_horiz,
                 ),
-                title: const Text('Change Vehicle'),
+                title: const Text(
+                  'Change Vehicle',
+                ),
                 onTap: () {
                   Navigator.pop(
                     sheetContext,
@@ -326,9 +505,12 @@ class _DriverListPageState extends State<DriverListPage> {
               ),
               ListTile(
                 leading: const Icon(
-                  Icons.remove_circle_outline,
+                  Icons
+                      .remove_circle_outline,
                 ),
-                title: const Text('Remove Vehicle'),
+                title: const Text(
+                  'Remove Vehicle',
+                ),
                 onTap: () {
                   Navigator.pop(
                     sheetContext,
@@ -358,7 +540,9 @@ class _DriverListPageState extends State<DriverListPage> {
     }
   }
 
-  Color _statusColor(String status) {
+  Color _statusColor(
+    String status,
+  ) {
     switch (status.toLowerCase()) {
       case 'active':
         return Colors.green;
@@ -373,7 +557,9 @@ class _DriverListPageState extends State<DriverListPage> {
     }
   }
 
-  Color _kycColor(String status) {
+  Color _kycColor(
+    String status,
+  ) {
     switch (status.toLowerCase()) {
       case 'verified':
         return Colors.green;
@@ -386,7 +572,9 @@ class _DriverListPageState extends State<DriverListPage> {
     }
   }
 
-  String _kycText(String status) {
+  String _kycText(
+    String status,
+  ) {
     switch (status.toLowerCase()) {
       case 'verified':
         return 'Verified';
@@ -404,13 +592,17 @@ class _DriverListPageState extends State<DriverListPage> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         horizontal: 9,
         vertical: 5,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(20),
+        color: color.withValues(
+          alpha: 0.12,
+        ),
+        borderRadius:
+            BorderRadius.circular(20),
       ),
       child: Text(
         label,
@@ -429,11 +621,13 @@ class _DriverListPageState extends State<DriverListPage> {
     required String value,
   }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
+      padding:
+          const EdgeInsets.symmetric(
         vertical: 5,
       ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
         children: [
           Icon(
             icon,
@@ -446,7 +640,8 @@ class _DriverListPageState extends State<DriverListPage> {
             child: Text(
               label,
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color:
+                    Colors.grey.shade600,
                 fontSize: 13,
               ),
             ),
@@ -455,7 +650,8 @@ class _DriverListPageState extends State<DriverListPage> {
             child: Text(
               value,
               style: const TextStyle(
-                fontWeight: FontWeight.w500,
+                fontWeight:
+                    FontWeight.w500,
               ),
             ),
           ),
@@ -465,38 +661,51 @@ class _DriverListPageState extends State<DriverListPage> {
   }
 
   Widget _driverCard(
-    DocumentSnapshot<Map<String, dynamic>> document,
+    DocumentSnapshot<
+            Map<String, dynamic>>
+        document,
   ) {
     final Map<String, dynamic> data =
-        document.data() ?? <String, dynamic>{};
+        document.data() ??
+            <String, dynamic>{};
 
     final String driverId =
-        data['driverId']?.toString() ?? document.id;
+        data['driverId']?.toString() ??
+            document.id;
 
     final String name =
-        data['name']?.toString() ?? 'Unknown Driver';
+        data['name']?.toString() ??
+            'Unknown Driver';
 
     final String phone =
-        data['phone']?.toString() ?? '-';
+        data['phone']?.toString() ??
+            '-';
 
     final String email =
-        data['email']?.toString() ?? '-';
+        data['email']?.toString() ??
+            '-';
 
     final String licenseNumber =
-        data['licenseNumber']?.toString() ?? '-';
+        data['licenseNumber']
+                ?.toString() ??
+            '-';
 
     final String status =
         data['status']?.toString() ??
             'pending_verification';
 
     final String kycStatus =
-        data['kycStatus']?.toString() ?? 'pending';
+        data['kycStatus']?.toString() ??
+            'pending';
 
     final String? vehicleId =
         data['vehicleId']?.toString();
 
     final String? vehicleNumber =
         data['vehicleNumber']?.toString();
+
+    final bool isAvailable =
+        data['isAvailable'] == true;
 
     final num rating =
         data['rating'] is num
@@ -513,11 +722,13 @@ class _DriverListPageState extends State<DriverListPage> {
         vehicleId.isNotEmpty;
 
     return Card(
-      margin: const EdgeInsets.only(
+      margin:
+          const EdgeInsets.only(
         bottom: 14,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding:
+            const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment:
               CrossAxisAlignment.start,
@@ -537,20 +748,25 @@ class _DriverListPageState extends State<DriverListPage> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment:
-                        CrossAxisAlignment.start,
+                        CrossAxisAlignment
+                            .start,
                     children: [
                       Text(
                         name,
-                        style: const TextStyle(
+                        style:
+                            const TextStyle(
                           fontSize: 17,
-                          fontWeight: FontWeight.bold,
+                          fontWeight:
+                              FontWeight.bold,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(
+                          height: 4),
                       Text(
                         phone,
                         style: TextStyle(
-                          color: Colors.grey.shade700,
+                          color: Colors
+                              .grey.shade700,
                         ),
                       ),
                     ],
@@ -561,53 +777,68 @@ class _DriverListPageState extends State<DriverListPage> {
                     '_',
                     ' ',
                   ),
-                  color: _statusColor(status),
+                  color:
+                      _statusColor(status),
                 ),
               ],
             ),
 
             const SizedBox(height: 16),
-
             const Divider(),
-
             const SizedBox(height: 8),
 
             _infoRow(
-              icon: Icons.email_outlined,
+              icon:
+                  Icons.email_outlined,
               label: 'Email',
               value: email,
             ),
 
             _infoRow(
-              icon: Icons.credit_card_outlined,
+              icon:
+                  Icons.credit_card_outlined,
               label: 'License',
-              value: licenseNumber,
+              value:
+                  licenseNumber,
             ),
 
             _infoRow(
-              icon: Icons.star_outline,
+              icon:
+                  Icons.star_outline,
               label: 'Rating',
-              value: rating.toStringAsFixed(1),
+              value:
+                  rating.toStringAsFixed(
+                1,
+              ),
             ),
 
             _infoRow(
-              icon: Icons.route_outlined,
+              icon:
+                  Icons.route_outlined,
               label: 'Total Trips',
-              value: totalTrips.toString(),
+              value:
+                  totalTrips.toString(),
             ),
 
             const SizedBox(height: 14),
 
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(12),
+              padding:
+                  const EdgeInsets.all(12),
+              decoration:
+                  BoxDecoration(
+                borderRadius:
+                    BorderRadius.circular(
+                  12,
+                ),
                 color: hasVehicle
-                    ? Colors.green.withValues(
+                    ? Colors.green
+                        .withValues(
                         alpha: 0.07,
                       )
-                    : Colors.orange.withValues(
+                    : Colors.orange
+                        .withValues(
                         alpha: 0.07,
                       ),
               ),
@@ -615,32 +846,43 @@ class _DriverListPageState extends State<DriverListPage> {
                 children: [
                   Icon(
                     hasVehicle
-                        ? Icons.directions_car
-                        : Icons.directions_car_outlined,
+                        ? Icons
+                            .directions_car
+                        : Icons
+                            .directions_car_outlined,
                     color: hasVehicle
                         ? Colors.green
                         : Colors.orange,
                   ),
-                  const SizedBox(width: 10),
+                  const SizedBox(
+                      width: 10),
                   Expanded(
                     child: Column(
                       crossAxisAlignment:
-                          CrossAxisAlignment.start,
+                          CrossAxisAlignment
+                              .start,
                       children: [
                         Text(
                           hasVehicle
                               ? 'Assigned Vehicle'
                               : 'No Vehicle Assigned',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
+                          style:
+                              const TextStyle(
+                            fontWeight:
+                                FontWeight
+                                    .w600,
                           ),
                         ),
                         if (hasVehicle) ...[
-                          const SizedBox(height: 3),
+                          const SizedBox(
+                              height: 3),
                           Text(
-                            vehicleNumber ?? '-',
+                            vehicleNumber ??
+                                '-',
                             style: TextStyle(
-                              color: Colors.grey.shade700,
+                              color: Colors
+                                  .grey
+                                  .shade700,
                               fontSize: 13,
                             ),
                           ),
@@ -650,6 +892,39 @@ class _DriverListPageState extends State<DriverListPage> {
                   ),
                 ],
               ),
+            ),
+
+            const SizedBox(height: 10),
+
+            Row(
+              children: [
+                Icon(
+                  isAvailable
+                      ? Icons
+                          .radio_button_checked
+                      : Icons
+                          .radio_button_off,
+                  size: 18,
+                  color: isAvailable
+                      ? Colors.green
+                      : Colors.grey,
+                ),
+                const SizedBox(
+                    width: 7),
+                Text(
+                  isAvailable
+                      ? 'Available'
+                      : 'Not Available',
+                  style: TextStyle(
+                    fontWeight:
+                        FontWeight.w600,
+                    color: isAvailable
+                        ? Colors.green
+                        : Colors.grey
+                            .shade700,
+                  ),
+                ),
+              ],
             ),
 
             const SizedBox(height: 12),
@@ -662,7 +937,8 @@ class _DriverListPageState extends State<DriverListPage> {
                     driverId: driverId,
                     driverName: name,
                     vehicleId: vehicleId,
-                    vehicleNumber: vehicleNumber,
+                    vehicleNumber:
+                        vehicleNumber,
                   );
                 },
                 icon: Icon(
@@ -685,12 +961,15 @@ class _DriverListPageState extends State<DriverListPage> {
                 const Text(
                   'KYC Status: ',
                   style: TextStyle(
-                    fontWeight: FontWeight.w600,
+                    fontWeight:
+                        FontWeight.w600,
                   ),
                 ),
                 _statusChip(
-                  label: _kycText(kycStatus),
-                  color: _kycColor(kycStatus),
+                  label:
+                      _kycText(kycStatus),
+                  color:
+                      _kycColor(kycStatus),
                 ),
               ],
             ),
@@ -701,13 +980,18 @@ class _DriverListPageState extends State<DriverListPage> {
               width: double.infinity,
               child: OutlinedButton.icon(
                 onPressed: () {
-                  _openKycPage(driverId);
+                  _openKycPage(
+                    driverId,
+                  );
                 },
                 icon: const Icon(
-                  Icons.verified_user_outlined,
+                  Icons
+                      .verified_user_outlined,
                 ),
                 label: Text(
-                  kycStatus.toLowerCase() == 'verified'
+                  kycStatus
+                              .toLowerCase() ==
+                          'verified'
                       ? 'View KYC'
                       : 'Manage KYC',
                 ),
@@ -722,7 +1006,8 @@ class _DriverListPageState extends State<DriverListPage> {
   Widget _emptyState() {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding:
+            const EdgeInsets.all(32),
         child: Column(
           mainAxisAlignment:
               MainAxisAlignment.center,
@@ -730,28 +1015,32 @@ class _DriverListPageState extends State<DriverListPage> {
             Icon(
               Icons.people_outline,
               size: 72,
-              color: Colors.grey.shade400,
+              color:
+                  Colors.grey.shade400,
             ),
             const SizedBox(height: 16),
             const Text(
               'No Drivers Added',
               style: TextStyle(
                 fontSize: 20,
-                fontWeight: FontWeight.bold,
+                fontWeight:
+                    FontWeight.bold,
               ),
             ),
             const SizedBox(height: 8),
             Text(
-              'Add your first driver to start '
-              'managing your fleet.',
-              textAlign: TextAlign.center,
+              'Add your first driver to start managing your fleet.',
+              textAlign:
+                  TextAlign.center,
               style: TextStyle(
-                color: Colors.grey.shade600,
+                color:
+                    Colors.grey.shade600,
               ),
             ),
             const SizedBox(height: 20),
             FilledButton.icon(
-              onPressed: _openAddDriverPage,
+              onPressed:
+                  _openAddDriverPage,
               icon: const Icon(
                 Icons.person_add,
               ),
@@ -767,12 +1056,14 @@ class _DriverListPageState extends State<DriverListPage> {
 
   @override
   Widget build(BuildContext context) {
-    final User? user = _auth.currentUser;
+    final User? user =
+        _auth.currentUser;
 
     if (user == null) {
       return Scaffold(
         appBar: AppBar(
-          title: const Text('Drivers'),
+          title:
+              const Text('Drivers'),
         ),
         body: const Center(
           child: Text(
@@ -784,9 +1075,16 @@ class _DriverListPageState extends State<DriverListPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Drivers'),
+        title: const Text(
+          'Drivers',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
       ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      body: StreamBuilder<
+          QuerySnapshot<
+              Map<String, dynamic>>>(
         stream: _firestore
             .collection('drivers')
             .where(
@@ -794,42 +1092,49 @@ class _DriverListPageState extends State<DriverListPage> {
               isEqualTo: user.uid,
             )
             .snapshots(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState ==
+        builder:
+            (context, snapshot) {
+          if (snapshot
+                  .connectionState ==
               ConnectionState.waiting) {
             return const Center(
-              child: CircularProgressIndicator(),
+              child:
+                  CircularProgressIndicator(),
             );
           }
 
           if (snapshot.hasError) {
             return Center(
               child: Padding(
-                padding: const EdgeInsets.all(24),
+                padding:
+                    const EdgeInsets.all(
+                  24,
+                ),
                 child: Text(
-                  'Unable to load drivers.\n\n'
-                  '${snapshot.error}',
-                  textAlign: TextAlign.center,
+                  'Unable to load drivers.\n\n${snapshot.error}',
+                  textAlign:
+                      TextAlign.center,
                 ),
               ),
             );
           }
 
-          final List<
-                  DocumentSnapshot<Map<String, dynamic>>>
-              drivers =
+          final drivers =
               snapshot.data?.docs ??
                   <DocumentSnapshot<
-                      Map<String, dynamic>>>[];
+                      Map<String,
+                          dynamic>>>[];
 
           if (drivers.isEmpty) {
             return _emptyState();
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding:
+                const EdgeInsets.all(16),
             itemCount: drivers.length,
-            itemBuilder: (context, index) {
+            itemBuilder:
+                (context, index) {
               return _driverCard(
                 drivers[index],
               );
@@ -839,21 +1144,30 @@ class _DriverListPageState extends State<DriverListPage> {
       ),
       floatingActionButton:
           FloatingActionButton.extended(
-        onPressed: _openAddDriverPage,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Driver'),
+        onPressed:
+            _openAddDriverPage,
+        icon: const Icon(
+          Icons.person_add,
+        ),
+        label: const Text(
+          'Add Driver',
+        ),
       ),
-      bottomNavigationBar: SafeArea(
+      bottomNavigationBar:
+          SafeArea(
         child: Padding(
-          padding: const EdgeInsets.only(
+          padding:
+              const EdgeInsets.only(
             bottom: 4,
           ),
           child: Text(
             '${AppConfig.appName} • '
             '${AppConfig.companyName}',
-            textAlign: TextAlign.center,
+            textAlign:
+                TextAlign.center,
             style: TextStyle(
-              color: Colors.grey.shade500,
+              color:
+                  Colors.grey.shade500,
               fontSize: 11,
             ),
           ),

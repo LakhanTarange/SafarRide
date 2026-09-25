@@ -8,44 +8,36 @@ class AddVehiclePage extends StatefulWidget {
   const AddVehiclePage({super.key});
 
   @override
-  State<AddVehiclePage> createState() =>
-      _AddVehiclePageState();
+  State<AddVehiclePage> createState() => _AddVehiclePageState();
 }
 
-class _AddVehiclePageState
-    extends State<AddVehiclePage> {
+class _AddVehiclePageState extends State<AddVehiclePage> {
   final _formKey = GlobalKey<FormState>();
 
-  final _vehicleNumberController =
-      TextEditingController();
+  final _vehicleNumberController = TextEditingController();
+  final _vehicleBrandController = TextEditingController();
+  final _vehicleModelController = TextEditingController();
+  final _vehicleYearController = TextEditingController();
+  final _seatingController = TextEditingController();
 
-  final _vehicleModelController =
-      TextEditingController();
-
-  final _vehicleBrandController =
-      TextEditingController();
-
-  final _vehicleYearController =
-      TextEditingController();
-
-  final _seatingController =
-      TextEditingController();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String _vehicleType = 'Car';
   String _fuelType = 'Petrol';
+
+  bool _rideSharingEnabled = false;
+  bool _carpoolEnabled = false;
+  bool _rentalEnabled = false;
+  bool _selfDriveRentalEnabled = false;
+
   bool _isSaving = false;
-
-  final FirebaseFirestore _firestore =
-      FirebaseFirestore.instance;
-
-  final FirebaseAuth _auth =
-      FirebaseAuth.instance;
 
   @override
   void dispose() {
     _vehicleNumberController.dispose();
-    _vehicleModelController.dispose();
     _vehicleBrandController.dispose();
+    _vehicleModelController.dispose();
     _vehicleYearController.dispose();
     _seatingController.dispose();
     super.dispose();
@@ -56,11 +48,19 @@ class _AddVehiclePageState
       return;
     }
 
-    final user = _auth.currentUser;
+    final User? user = _auth.currentUser;
 
     if (user == null) {
       _showMessage(
         'Please login again.',
+        isError: true,
+      );
+      return;
+    }
+
+    if (_selfDriveRentalEnabled && !_rentalEnabled) {
+      _showMessage(
+        'Self-drive rental requires Rental to be enabled.',
         isError: true,
       );
       return;
@@ -71,36 +71,69 @@ class _AddVehiclePageState
     });
 
     try {
-      final vehicleReference =
+      final DocumentReference<Map<String, dynamic>> vehicleReference =
           _firestore.collection('vehicles').doc();
+
+      final int year =
+          int.parse(_vehicleYearController.text.trim());
+
+      final int seats =
+          int.parse(_seatingController.text.trim());
 
       await vehicleReference.set({
         'vehicleId': vehicleReference.id,
         'ownerId': user.uid,
+
         'vehicleNumber':
-            _vehicleNumberController.text
-                .trim()
-                .toUpperCase(),
+            _vehicleNumberController.text.trim().toUpperCase(),
+
         'vehicleType': _vehicleType,
+
+        'serviceType': _vehicleType.toLowerCase(),
+
         'brand':
             _vehicleBrandController.text.trim(),
+
         'model':
             _vehicleModelController.text.trim(),
-        'year':
-            int.parse(
-              _vehicleYearController.text.trim(),
-            ),
+
+        'year': year,
+
         'fuelType': _fuelType,
-        'seatingCapacity':
-            int.parse(
-              _seatingController.text.trim(),
-            ),
-        'status': 'pending_verification',
+
+        'seatingCapacity': seats,
+
+        // Driver will be assigned later by the owner.
         'driverId': null,
-        'createdAt':
-            FieldValue.serverTimestamp(),
-        'updatedAt':
-            FieldValue.serverTimestamp(),
+        'driverDocumentId': null,
+        'driverName': null,
+
+        // Vehicle verification.
+        'status': 'pending_verification',
+        'verificationStatus': 'pending',
+
+        // Availability.
+        'isAvailable': false,
+
+        // Service configuration.
+        'rideSharingEnabled': _rideSharingEnabled,
+        'carpoolEnabled': _carpoolEnabled,
+        'rentalEnabled': _rentalEnabled,
+        'selfDriveRentalEnabled': _selfDriveRentalEnabled,
+
+        // Location fields.
+        'latitude': null,
+        'longitude': null,
+        'locationUpdatedAt': null,
+
+        // Pricing will be configured separately.
+        'pricingConfigured': false,
+
+        // Route will be configured separately.
+        'routeConfigured': false,
+
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
       if (!mounted) {
@@ -111,11 +144,11 @@ class _AddVehiclePageState
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: const Text(
-              'Vehicle Added',
-            ),
+            title: const Text('Vehicle Added'),
             content: const Text(
-              'Vehicle details have been submitted successfully. Verification is pending.',
+              'Vehicle details have been submitted successfully. '
+              'The vehicle will remain unavailable until verification '
+              'and driver assignment are completed.',
             ),
             actions: [
               FilledButton(
@@ -135,8 +168,7 @@ class _AddVehiclePageState
     } on FirebaseException catch (error) {
       if (mounted) {
         _showMessage(
-          error.message ??
-              'Unable to save vehicle.',
+          error.message ?? 'Unable to save vehicle.',
           isError: true,
         );
       }
@@ -163,8 +195,34 @@ class _AddVehiclePageState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor:
-            isError ? Colors.red : null,
+        backgroundColor: isError ? Colors.red : null,
+      ),
+    );
+  }
+
+  Widget _serviceSwitch({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Card(
+      margin: const EdgeInsets.only(bottom: 10),
+      child: SwitchListTile(
+        secondary: Icon(
+          icon,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        title: Text(
+          title,
+          style: const TextStyle(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        subtitle: Text(subtitle),
+        value: value,
+        onChanged: onChanged,
       ),
     );
   }
@@ -173,9 +231,9 @@ class _AddVehiclePageState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'Add Vehicle',
-          style: const TextStyle(
+          style: TextStyle(
             fontWeight: FontWeight.bold,
           ),
         ),
@@ -213,7 +271,8 @@ class _AddVehiclePageState
                       ),
                       const SizedBox(height: 6),
                       Text(
-                        'Add your vehicle details to start offering services.',
+                        'Register your vehicle and select the services '
+                        'you want to provide.',
                         style: TextStyle(
                           color: Colors.grey.shade600,
                         ),
@@ -222,11 +281,12 @@ class _AddVehiclePageState
                   ),
                 ),
               ),
-              const SizedBox(height: 16),
+
+              const SizedBox(height: 18),
+
               DropdownButtonFormField<String>(
                 initialValue: _vehicleType,
-                decoration:
-                    const InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Vehicle Type',
                   prefixIcon:
                       Icon(Icons.directions_car),
@@ -246,11 +306,11 @@ class _AddVehiclePageState
                   ),
                   DropdownMenuItem(
                     value: 'Tempo',
-                    child: Text('Tempo'),
+                    child: Text('Tempo / Cargo'),
                   ),
                   DropdownMenuItem(
                     value: 'Travels',
-                    child: Text('Travels'),
+                    child: Text('Travels / Bus'),
                   ),
                 ],
                 onChanged: (value) {
@@ -263,14 +323,14 @@ class _AddVehiclePageState
                   });
                 },
               ),
+
               const SizedBox(height: 14),
+
               TextFormField(
-                controller:
-                    _vehicleNumberController,
+                controller: _vehicleNumberController,
                 textCapitalization:
                     TextCapitalization.characters,
-                decoration:
-                    const InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Vehicle Number',
                   hintText: 'MH12AB1234',
                   prefixIcon:
@@ -285,12 +345,12 @@ class _AddVehiclePageState
                   return null;
                 },
               ),
+
               const SizedBox(height: 14),
+
               TextFormField(
-                controller:
-                    _vehicleBrandController,
-                decoration:
-                    const InputDecoration(
+                controller: _vehicleBrandController,
+                decoration: const InputDecoration(
                   labelText: 'Vehicle Brand',
                   hintText: 'Example: Tata',
                   prefixIcon:
@@ -305,12 +365,12 @@ class _AddVehiclePageState
                   return null;
                 },
               ),
+
               const SizedBox(height: 14),
+
               TextFormField(
-                controller:
-                    _vehicleModelController,
-                decoration:
-                    const InputDecoration(
+                controller: _vehicleModelController,
+                decoration: const InputDecoration(
                   labelText: 'Vehicle Model',
                   hintText: 'Example: Nexon',
                   prefixIcon:
@@ -325,21 +385,22 @@ class _AddVehiclePageState
                   return null;
                 },
               ),
+
               const SizedBox(height: 14),
+
               TextFormField(
-                controller:
-                    _vehicleYearController,
+                controller: _vehicleYearController,
                 keyboardType:
                     TextInputType.number,
-                decoration:
-                    const InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Manufacturing Year',
                   hintText: 'Example: 2024',
                   prefixIcon:
                       Icon(Icons.calendar_today),
                 ),
                 validator: (value) {
-                  final year = int.tryParse(
+                  final int? year =
+                      int.tryParse(
                     value?.trim() ?? '',
                   );
 
@@ -355,11 +416,12 @@ class _AddVehiclePageState
                   return null;
                 },
               ),
+
               const SizedBox(height: 14),
+
               DropdownButtonFormField<String>(
                 initialValue: _fuelType,
-                decoration:
-                    const InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Fuel Type',
                   prefixIcon:
                       Icon(Icons.local_gas_station),
@@ -396,20 +458,22 @@ class _AddVehiclePageState
                   });
                 },
               ),
+
               const SizedBox(height: 14),
+
               TextFormField(
                 controller: _seatingController,
                 keyboardType:
                     TextInputType.number,
-                decoration:
-                    const InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Seating Capacity',
                   hintText: 'Example: 5',
                   prefixIcon:
                       Icon(Icons.event_seat),
                 ),
                 validator: (value) {
-                  final seats = int.tryParse(
+                  final int? seats =
+                      int.tryParse(
                     value?.trim() ?? '',
                   );
 
@@ -422,7 +486,126 @@ class _AddVehiclePageState
                   return null;
                 },
               ),
+
               const SizedBox(height: 24),
+
+              const Text(
+                'Services',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+
+              const SizedBox(height: 6),
+
+              Text(
+                'Select the services this vehicle can provide.',
+                style: TextStyle(
+                  color: Colors.grey.shade600,
+                ),
+              ),
+
+              const SizedBox(height: 12),
+
+              _serviceSwitch(
+                title: 'Ride Sharing',
+                subtitle:
+                    'Allow passengers to book seats on your route.',
+                icon: Icons.people_alt_outlined,
+                value: _rideSharingEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _rideSharingEnabled = value;
+                  });
+                },
+              ),
+
+              _serviceSwitch(
+                title: 'Carpool',
+                subtitle:
+                    'Allow shared travel with passengers.',
+                icon: Icons.groups_outlined,
+                value: _carpoolEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _carpoolEnabled = value;
+                  });
+                },
+              ),
+
+              _serviceSwitch(
+                title: 'Rental',
+                subtitle:
+                    'Allow this vehicle to be offered for rental.',
+                icon: Icons.car_rental_outlined,
+                value: _rentalEnabled,
+                onChanged: (value) {
+                  setState(() {
+                    _rentalEnabled = value;
+
+                    if (!value) {
+                      _selfDriveRentalEnabled = false;
+                    }
+                  });
+                },
+              ),
+
+              if (_vehicleType == 'Bike' ||
+                  _vehicleType == 'Car')
+                _serviceSwitch(
+                  title: 'Self-Drive Rental',
+                  subtitle:
+                      'Allow verified customers to rent this vehicle without a driver.',
+                  icon: Icons.key_outlined,
+                  value: _selfDriveRentalEnabled,
+                  onChanged: _rentalEnabled
+                      ? (value) {
+                          setState(() {
+                            _selfDriveRentalEnabled =
+                                value;
+                          });
+                        }
+                      : (_) {
+                          _showMessage(
+                            'Enable Rental first.',
+                            isError: true,
+                          );
+                        },
+                ),
+
+              const SizedBox(height: 20),
+
+              Container(
+                padding:
+                    const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  borderRadius:
+                      BorderRadius.circular(14),
+                  color: Theme.of(context)
+                      .colorScheme
+                      .primary
+                      .withValues(alpha: 0.06),
+                ),
+                child: const Row(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.info_outline),
+                    SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'After registration, the vehicle remains '
+                        'unavailable until verification is completed. '
+                        'A driver can be assigned later from Vehicle Management.',
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const SizedBox(height: 24),
+
               SizedBox(
                 height: 52,
                 child: FilledButton.icon(
@@ -437,9 +620,7 @@ class _AddVehiclePageState
                             strokeWidth: 2,
                           ),
                         )
-                      : const Icon(
-                          Icons.save,
-                        ),
+                      : const Icon(Icons.save),
                   label: Text(
                     _isSaving
                         ? 'Saving...'
@@ -447,9 +628,11 @@ class _AddVehiclePageState
                   ),
                 ),
               ),
+
               const SizedBox(height: 20),
+
               Text(
-                'Vehicle status will remain pending until verification is completed.',
+                'Vehicle verification and approval will be handled before customer visibility.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,

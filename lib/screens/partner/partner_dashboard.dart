@@ -12,12 +12,10 @@ class PartnerDashboard extends StatefulWidget {
   const PartnerDashboard({super.key});
 
   @override
-  State<PartnerDashboard> createState() =>
-      _PartnerDashboardState();
+  State<PartnerDashboard> createState() => _PartnerDashboardState();
 }
 
-class _PartnerDashboardState
-    extends State<PartnerDashboard> {
+class _PartnerDashboardState extends State<PartnerDashboard> {
   int _currentIndex = 0;
 
   final List<Widget> _pages = const [
@@ -30,8 +28,7 @@ class _PartnerDashboardState
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            const ProfilePage(),
+        builder: (context) => const ProfilePage(),
       ),
     );
   }
@@ -40,17 +37,14 @@ class _PartnerDashboardState
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(AppConfig.appName),
+        title: const Text('Owner Dashboard'),
         actions: [
           IconButton(
             tooltip: 'Notifications',
             onPressed: () {
-              ScaffoldMessenger.of(context)
-                  .showSnackBar(
+              ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                  content: Text(
-                    'No new notifications.',
-                  ),
+                  content: Text('No new notifications.'),
                 ),
               );
             },
@@ -70,38 +64,25 @@ class _PartnerDashboardState
       body: _pages[_currentIndex],
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
-        onDestinationSelected:
-            (int index) {
+        onDestinationSelected: (int index) {
           setState(() {
             _currentIndex = index;
           });
         },
         destinations: const [
           NavigationDestination(
-            icon: Icon(
-              Icons.dashboard_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.dashboard,
-            ),
+            icon: Icon(Icons.dashboard_outlined),
+            selectedIcon: Icon(Icons.dashboard),
             label: 'Dashboard',
           ),
           NavigationDestination(
-            icon: Icon(
-              Icons.route_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.route,
-            ),
+            icon: Icon(Icons.route_outlined),
+            selectedIcon: Icon(Icons.route),
             label: 'Trips',
           ),
           NavigationDestination(
-            icon: Icon(
-              Icons.support_agent_outlined,
-            ),
-            selectedIcon: Icon(
-              Icons.support_agent,
-            ),
+            icon: Icon(Icons.support_agent_outlined),
+            selectedIcon: Icon(Icons.support_agent),
             label: 'Support',
           ),
         ],
@@ -110,8 +91,7 @@ class _PartnerDashboardState
   }
 }
 
-class _PartnerHomePage
-    extends StatelessWidget {
+class _PartnerHomePage extends StatelessWidget {
   const _PartnerHomePage();
 
   void _openPage(
@@ -130,8 +110,7 @@ class _PartnerHomePage
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) =>
-            const PartnerTripsPage(),
+        builder: (context) => const PartnerTripsPage(),
       ),
     );
   }
@@ -140,11 +119,10 @@ class _PartnerHomePage
     BuildContext context,
     String title,
   ) {
-    ScaffoldMessenger.of(context)
-        .showSnackBar(
+    ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          '$title feature is coming soon.',
+          '$title module will be added next.',
         ),
       ),
     );
@@ -161,25 +139,41 @@ class _PartnerHomePage
           30,
         ),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'Partner Dashboard',
+              'Welcome, Owner',
               style: TextStyle(
                 fontSize: 26,
                 fontWeight: FontWeight.bold,
               ),
             ),
+
             const SizedBox(height: 6),
+
             Text(
-              'Manage your vehicles, drivers and trips.',
+              'Manage your vehicles, drivers, routes and business.',
               style: TextStyle(
                 color: Colors.grey.shade600,
+                fontSize: 15,
               ),
             ),
 
             const SizedBox(height: 24),
+
+            _BusinessSummaryCard(),
+
+            const SizedBox(height: 24),
+
+            const Text(
+              'Quick Actions',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+
+            const SizedBox(height: 14),
 
             Row(
               children: [
@@ -214,7 +208,7 @@ class _PartnerHomePage
             const SizedBox(height: 24),
 
             const Text(
-              'Management',
+              'Business Management',
               style: TextStyle(
                 fontSize: 20,
                 fontWeight: FontWeight.bold,
@@ -226,18 +220,15 @@ class _PartnerHomePage
             GridView.count(
               crossAxisCount: 2,
               shrinkWrap: true,
-              physics:
-                  const NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               childAspectRatio: 1.08,
               children: [
                 _ManagementCard(
-                  icon:
-                      Icons.directions_car_outlined,
-                  title: 'Vehicles',
-                  subtitle:
-                      'Manage vehicles',
+                  icon: Icons.directions_car_outlined,
+                  title: 'My Vehicles',
+                  subtitle: 'Manage vehicles',
                   onTap: () {
                     _openPage(
                       context,
@@ -245,11 +236,11 @@ class _PartnerHomePage
                     );
                   },
                 ),
+
                 _ManagementCard(
                   icon: Icons.people_outline,
-                  title: 'Drivers',
-                  subtitle:
-                      'Manage drivers',
+                  title: 'My Drivers',
+                  subtitle: 'Manage drivers',
                   onTap: () {
                     _openPage(
                       context,
@@ -257,34 +248,56 @@ class _PartnerHomePage
                     );
                   },
                 ),
-                _ManagementCard(
-                  icon:
-                      Icons.verified_user_outlined,
-                  title: 'Driver KYC',
-                  subtitle:
-                      'Verify documents',
-                  onTap: () {
-                    _openPage(
-                      context,
-                      const DriverListPage(),
-                    );
-                  },
-                ),
+
                 _ManagementCard(
                   icon: Icons.route_outlined,
-                  title: 'Trips',
-                  subtitle:
-                      'Booking requests',
+                  title: 'Routes',
+                  subtitle: 'Routes & stops',
+                  onTap: () {
+                    _comingSoon(
+                      context,
+                      'Routes',
+                    );
+                  },
+                ),
+
+                _ManagementCard(
+                  icon: Icons.payments_outlined,
+                  title: 'Pricing',
+                  subtitle: 'Set your fares',
+                  onTap: () {
+                    _comingSoon(
+                      context,
+                      'Pricing',
+                    );
+                  },
+                ),
+
+                _ManagementCard(
+                  icon: Icons.event_available_outlined,
+                  title: 'Availability',
+                  subtitle: 'Vehicle availability',
+                  onTap: () {
+                    _comingSoon(
+                      context,
+                      'Availability',
+                    );
+                  },
+                ),
+
+                _ManagementCard(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'Bookings',
+                  subtitle: 'Customer bookings',
                   onTap: () {
                     _openTrips(context);
                   },
                 ),
+
                 _ManagementCard(
-                  icon:
-                      Icons.local_shipping_outlined,
+                  icon: Icons.local_shipping_outlined,
                   title: 'Cargo',
-                  subtitle:
-                      'Cargo trips',
+                  subtitle: 'Cargo & logistics',
                   onTap: () {
                     _comingSoon(
                       context,
@@ -292,12 +305,11 @@ class _PartnerHomePage
                     );
                   },
                 ),
+
                 _ManagementCard(
-                  icon:
-                      Icons.car_rental_outlined,
+                  icon: Icons.car_rental_outlined,
                   title: 'Rental',
-                  subtitle:
-                      'Rental trips',
+                  subtitle: 'Rental vehicles',
                   onTap: () {
                     _comingSoon(
                       context,
@@ -310,20 +322,20 @@ class _PartnerHomePage
 
             const SizedBox(height: 28),
 
+            _OwnerInfoCard(),
+
+            const SizedBox(height: 20),
+
             Container(
               width: double.infinity,
-              padding:
-                  const EdgeInsets.all(18),
+              padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                borderRadius:
-                    BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(18),
                 border: Border.all(
                   color: Theme.of(context)
                       .colorScheme
                       .outline
-                      .withValues(
-                        alpha: 0.15,
-                      ),
+                      .withValues(alpha: 0.15),
                 ),
               ),
               child: Row(
@@ -339,10 +351,8 @@ class _PartnerHomePage
                   Expanded(
                     child: Text(
                       'Manage your SafarRide business with ${AppConfig.companyName}.',
-                      style:
-                          const TextStyle(
-                        fontWeight:
-                            FontWeight.w600,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -356,8 +366,121 @@ class _PartnerHomePage
   }
 }
 
-class _QuickActionCard
-    extends StatelessWidget {
+class _BusinessSummaryCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      elevation: 1,
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Row(
+          children: [
+            Expanded(
+              child: _SummaryItem(
+                icon: Icons.directions_car_outlined,
+                title: 'Vehicles',
+                value: '0',
+              ),
+            ),
+            Expanded(
+              child: _SummaryItem(
+                icon: Icons.people_outline,
+                title: 'Drivers',
+                value: '0',
+              ),
+            ),
+            Expanded(
+              child: _SummaryItem(
+                icon: Icons.receipt_long_outlined,
+                title: 'Bookings',
+                value: '0',
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SummaryItem extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String value;
+
+  const _SummaryItem({
+    required this.icon,
+    required this.title,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Icon(
+          icon,
+          size: 28,
+          color: Theme.of(context).colorScheme.primary,
+        ),
+        const SizedBox(height: 8),
+        Text(
+          value,
+          style: const TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          title,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 12,
+            color: Colors.grey.shade600,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _OwnerInfoCard extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Theme.of(context)
+            .colorScheme
+            .primary
+            .withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: const Row(
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: 28,
+          ),
+          SizedBox(width: 14),
+          Expanded(
+            child: Text(
+              'Drivers do not need a separate login. '
+              'You can add drivers and assign them to your vehicles.',
+              style: TextStyle(
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickActionCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final VoidCallback onTap;
@@ -373,28 +496,22 @@ class _QuickActionCard
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding:
-              const EdgeInsets.all(18),
+          padding: const EdgeInsets.all(18),
           child: Row(
             children: [
               Icon(
                 icon,
                 size: 30,
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
                   title,
-                  style:
-                      const TextStyle(
-                    fontWeight:
-                        FontWeight.bold,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
@@ -406,8 +523,7 @@ class _QuickActionCard
   }
 }
 
-class _ManagementCard
-    extends StatelessWidget {
+class _ManagementCard extends StatelessWidget {
   final IconData icon;
   final String title;
   final String subtitle;
@@ -425,41 +541,33 @@ class _ManagementCard
     return Card(
       child: InkWell(
         onTap: onTap,
-        borderRadius:
-            BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(18),
         child: Padding(
-          padding:
-              const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
           child: Column(
-            mainAxisAlignment:
-                MainAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(
                 icon,
                 size: 38,
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary,
+                color: Theme.of(context).colorScheme.primary,
               ),
               const SizedBox(height: 10),
               Text(
                 title,
-                style:
-                    const TextStyle(
-                  fontWeight:
-                      FontWeight.bold,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
               ),
               const SizedBox(height: 4),
               Text(
                 subtitle,
-                textAlign:
-                    TextAlign.center,
+                textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: 12,
-                  color: Colors
-                      .grey.shade600,
+                  color: Colors.grey.shade600,
                 ),
               ),
             ],
@@ -470,19 +578,16 @@ class _ManagementCard
   }
 }
 
-class _PartnerSupportPage
-    extends StatelessWidget {
+class _PartnerSupportPage extends StatelessWidget {
   const _PartnerSupportPage();
 
   @override
   Widget build(BuildContext context) {
     return const Center(
       child: Padding(
-        padding:
-            EdgeInsets.all(24),
+        padding: EdgeInsets.all(24),
         child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
           children: [
             Icon(
               Icons.support_agent,
@@ -490,18 +595,17 @@ class _PartnerSupportPage
             ),
             SizedBox(height: 16),
             Text(
-              'Partner Support',
+              'Owner Support',
               style: TextStyle(
                 fontSize: 22,
-                fontWeight:
-                    FontWeight.bold,
+                fontWeight: FontWeight.bold,
               ),
             ),
             SizedBox(height: 8),
             Text(
-              'Partner support and complaint management will be added in the next module.',
-              textAlign:
-                  TextAlign.center,
+              'Support, complaints and incident management '
+              'will be added in the upcoming modules.',
+              textAlign: TextAlign.center,
             ),
           ],
         ),

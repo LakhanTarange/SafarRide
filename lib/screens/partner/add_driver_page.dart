@@ -8,24 +8,22 @@ class AddDriverPage extends StatefulWidget {
   const AddDriverPage({super.key});
 
   @override
-  State<AddDriverPage> createState() =>
-      _AddDriverPageState();
+  State<AddDriverPage> createState() => _AddDriverPageState();
 }
 
-class _AddDriverPageState
-    extends State<AddDriverPage> {
+class _AddDriverPageState extends State<AddDriverPage> {
   final _formKey = GlobalKey<FormState>();
 
-  final _nameController =
+  final TextEditingController _nameController =
       TextEditingController();
 
-  final _phoneController =
+  final TextEditingController _phoneController =
       TextEditingController();
 
-  final _emailController =
+  final TextEditingController _emailController =
       TextEditingController();
 
-  final _licenseController =
+  final TextEditingController _licenseController =
       TextEditingController();
 
   final FirebaseFirestore _firestore =
@@ -53,19 +51,11 @@ class _AddDriverPageState
       return;
     }
 
-    final user = _auth.currentUser;
+    final User? user = _auth.currentUser;
 
     if (user == null) {
       _showMessage(
         'Please login again.',
-        isError: true,
-      );
-      return;
-    }
-
-    if (_selectedVehicleId == null) {
-      _showMessage(
-        'Please select a vehicle.',
         isError: true,
       );
       return;
@@ -76,31 +66,98 @@ class _AddDriverPageState
     });
 
     try {
-      final driverReference =
+      final DocumentReference<Map<String, dynamic>>
+          driverReference =
           _firestore.collection('drivers').doc();
 
+      final String driverId = driverReference.id;
+
       await driverReference.set({
-        'driverId': driverReference.id,
+        'driverId': driverId,
         'ownerId': user.uid,
+
+        // Driver personal details
         'name': _nameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'email': _emailController.text.trim(),
-        'licenseNumber':
-            _licenseController.text
-                .trim()
-                .toUpperCase(),
+
+        // Licence details
+        'licenseNumber': _licenseController.text
+            .trim()
+            .toUpperCase(),
+
+        // Vehicle assignment
         'vehicleId': _selectedVehicleId,
         'vehicleNumber': _selectedVehicleNumber,
+
+        // Verification
         'status': 'pending_verification',
         'kycStatus': 'pending',
+
+        // Account management
         'accountStatus': 'active',
+
+        // Driver availability
+        'isAvailable': false,
+
+        // GPS fields - future use
+        'latitude': null,
+        'longitude': null,
+        'locationUpdatedAt': null,
+
+        // Driver statistics
         'rating': 0,
         'totalTrips': 0,
-        'createdAt':
-            FieldValue.serverTimestamp(),
-        'updatedAt':
-            FieldValue.serverTimestamp(),
+        'completedTrips': 0,
+
+        // Future KYC fields
+        'licenseVerified': false,
+        'identityVerified': false,
+        'kycVerifiedAt': null,
+
+        // Timestamps
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
       });
+
+      // If vehicle was selected, update vehicle too.
+      if (_selectedVehicleId != null &&
+          _selectedVehicleId!.isNotEmpty) {
+        final QuerySnapshot<
+                Map<String, dynamic>> vehicleSnapshot =
+            await _firestore
+                .collection('vehicles')
+                .where(
+                  'ownerId',
+                  isEqualTo: user.uid,
+                )
+                .where(
+                  'vehicleId',
+                  isEqualTo: _selectedVehicleId,
+                )
+                .limit(1)
+                .get();
+
+        if (vehicleSnapshot.docs.isNotEmpty) {
+          final DocumentReference<
+                  Map<String, dynamic>>
+              vehicleReference =
+              vehicleSnapshot.docs.first.reference;
+
+          await vehicleReference.update({
+            'driverId': driverId,
+            'driverDocumentId': driverId,
+            'driverName':
+                _nameController.text.trim(),
+            'driverPhone':
+                _phoneController.text.trim(),
+            'driverKycStatus': 'pending',
+            'isAvailable': false,
+            'updatedAt':
+                FieldValue.serverTimestamp(),
+          });
+        }
+      }
 
       if (!mounted) {
         return;
@@ -108,18 +165,20 @@ class _AddDriverPageState
 
       await showDialog<void>(
         context: context,
-        builder: (context) {
+        builder: (dialogContext) {
           return AlertDialog(
             title: const Text(
               'Driver Added',
             ),
-            content: const Text(
-              'Driver registration was completed successfully. KYC verification is pending.',
+            content: Text(
+              _selectedVehicleId == null
+                  ? 'Driver has been registered successfully. Vehicle can be assigned later.'
+                  : 'Driver has been registered and assigned to the selected vehicle. KYC verification is pending.',
             ),
             actions: [
               FilledButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pop(dialogContext);
                 },
                 child: const Text('Done'),
               ),
@@ -168,9 +227,42 @@ class _AddDriverPageState
     );
   }
 
+  Widget _sectionTitle(
+    String title,
+    String subtitle,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.only(
+        top: 8,
+        bottom: 10,
+      ),
+      child: Column(
+        crossAxisAlignment:
+            CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 13,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final user = _auth.currentUser;
+    final User? user = _auth.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -191,7 +283,8 @@ class _AddDriverPageState
               child: Form(
                 key: _formKey,
                 child: ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding:
+                      const EdgeInsets.all(16),
                   children: [
                     Card(
                       child: Padding(
@@ -208,7 +301,9 @@ class _AddDriverPageState
                                 fontWeight:
                                     FontWeight.bold,
                                 color:
-                                    Theme.of(context)
+                                    Theme.of(
+                                      context,
+                                    )
                                         .colorScheme
                                         .primary,
                               ),
@@ -224,7 +319,7 @@ class _AddDriverPageState
                             ),
                             const SizedBox(height: 6),
                             Text(
-                              'Register a driver and assign a vehicle.',
+                              'Add and manage your driver without creating a separate driver login.',
                               style: TextStyle(
                                 color:
                                     Colors.grey.shade600,
@@ -234,9 +329,17 @@ class _AddDriverPageState
                         ),
                       ),
                     ),
-                    const SizedBox(height: 16),
+
+                    const SizedBox(height: 20),
+
+                    _sectionTitle(
+                      'Driver Details',
+                      'Enter the driver personal information.',
+                    ),
+
                     TextFormField(
-                      controller: _nameController,
+                      controller:
+                          _nameController,
                       textCapitalization:
                           TextCapitalization.words,
                       decoration:
@@ -246,27 +349,33 @@ class _AddDriverPageState
                             Icon(Icons.person),
                       ),
                       validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
+                        final name =
+                            value?.trim() ?? '';
+
+                        if (name.isEmpty) {
                           return 'Enter driver name';
                         }
 
-                        if (value.trim().length < 2) {
+                        if (name.length < 2) {
                           return 'Enter a valid name';
                         }
 
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 14),
+
                     TextFormField(
-                      controller: _phoneController,
+                      controller:
+                          _phoneController,
                       keyboardType:
                           TextInputType.phone,
                       decoration:
                           const InputDecoration(
                         labelText: 'Mobile Number',
-                        hintText: '10 digit mobile number',
+                        hintText:
+                            '10 digit mobile number',
                         prefixIcon:
                             Icon(Icons.phone),
                       ),
@@ -287,14 +396,20 @@ class _AddDriverPageState
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 14),
+
                     TextFormField(
-                      controller: _emailController,
+                      controller:
+                          _emailController,
                       keyboardType:
                           TextInputType.emailAddress,
                       decoration:
                           const InputDecoration(
-                        labelText: 'Email Address',
+                        labelText:
+                            'Email Address',
+                        hintText:
+                            'driver@example.com',
                         prefixIcon:
                             Icon(Icons.email),
                       ),
@@ -303,7 +418,7 @@ class _AddDriverPageState
                             value?.trim() ?? '';
 
                         if (email.isEmpty) {
-                          return 'Enter email address';
+                          return null;
                         }
 
                         if (!RegExp(
@@ -315,7 +430,14 @@ class _AddDriverPageState
                         return null;
                       },
                     ),
-                    const SizedBox(height: 14),
+
+                    const SizedBox(height: 20),
+
+                    _sectionTitle(
+                      'Driving Licence',
+                      'Enter the driver licence number.',
+                    ),
+
                     TextFormField(
                       controller:
                           _licenseController,
@@ -331,23 +453,28 @@ class _AddDriverPageState
                             Icon(Icons.badge),
                       ),
                       validator: (value) {
-                        if (value == null ||
-                            value.trim().isEmpty) {
+                        final license =
+                            value?.trim() ?? '';
+
+                        if (license.isEmpty) {
                           return 'Enter driving license number';
+                        }
+
+                        if (license.length < 5) {
+                          return 'Enter a valid license number';
                         }
 
                         return null;
                       },
                     ),
+
                     const SizedBox(height: 20),
-                    const Text(
-                      'Assign Vehicle',
-                      style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.bold,
-                      ),
+
+                    _sectionTitle(
+                      'Vehicle Assignment',
+                      'Vehicle assignment is optional. You can assign it later.',
                     ),
-                    const SizedBox(height: 8),
+
                     StreamBuilder<
                         QuerySnapshot<
                             Map<String, dynamic>>>(
@@ -374,16 +501,25 @@ class _AddDriverPageState
                         }
 
                         if (snapshot.hasError) {
-                          return Text(
-                            'Unable to load vehicles.',
-                            style: TextStyle(
-                              color: Colors.red.shade700,
+                          return Card(
+                            child: Padding(
+                              padding:
+                                  const EdgeInsets.all(
+                                      16),
+                              child: Text(
+                                'Unable to load vehicles.\n${snapshot.error}',
+                                style: TextStyle(
+                                  color: Colors
+                                      .red.shade700,
+                                ),
+                              ),
                             ),
                           );
                         }
 
                         final vehicles =
-                            snapshot.data?.docs ?? [];
+                            snapshot.data?.docs ??
+                                [];
 
                         if (vehicles.isEmpty) {
                           return Card(
@@ -391,100 +527,193 @@ class _AddDriverPageState
                               padding:
                                   const EdgeInsets.all(
                                       16),
-                              child: Text(
-                                'No vehicles found. Add a vehicle first.',
-                                style: TextStyle(
-                                  color: Colors
-                                      .grey.shade700,
-                                ),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    Icons
+                                        .directions_car_outlined,
+                                    color: Colors
+                                        .grey.shade600,
+                                  ),
+                                  const SizedBox(
+                                      width: 10),
+                                  Expanded(
+                                    child: Text(
+                                      'No vehicles found. You can add a vehicle first or register the driver and assign a vehicle later.',
+                                      style: TextStyle(
+                                        color: Colors
+                                            .grey.shade700,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           );
                         }
 
-                        return DropdownButtonFormField<
-                            String>(
-                          initialValue:
-                              _selectedVehicleId,
-                          decoration:
-                              const InputDecoration(
-                            labelText:
-                                'Select Vehicle',
-                            prefixIcon: Icon(
-                              Icons.directions_car,
-                            ),
-                          ),
-                          items: vehicles.map(
-                            (document) {
-                              final data =
-                                  document.data();
-
-                              final number =
-                                  (data['vehicleNumber'] ??
-                                          '-')
-                                      .toString();
-
-                              final type =
-                                  (data['vehicleType'] ??
-                                          'Vehicle')
-                                      .toString();
-
-                              final brand =
-                                  (data['brand'] ?? '')
-                                      .toString();
-
-                              final model =
-                                  (data['model'] ?? '')
-                                      .toString();
-
-                              return DropdownMenuItem<
-                                  String>(
-                                value: document.id,
-                                child: Text(
-                                  '$number • $type • $brand $model'
-                                      .trim(),
-                                  overflow:
-                                      TextOverflow.ellipsis,
+                        return Column(
+                          children: [
+                            DropdownButtonFormField<
+                                String>(
+                              initialValue:
+                                  _selectedVehicleId,
+                              decoration:
+                                  const InputDecoration(
+                                labelText:
+                                    'Select Vehicle',
+                                prefixIcon:
+                                    Icon(
+                                  Icons
+                                      .directions_car,
                                 ),
-                              );
-                            },
-                          ).toList(),
-                          onChanged: (value) {
-                            if (value == null) {
-                              return;
-                            }
+                              ),
+                              items:
+                                  vehicles.map(
+                                (document) {
+                                  final data =
+                                      document
+                                          .data();
 
-                            final selected =
-                                vehicles.firstWhere(
-                              (document) =>
-                                  document.id == value,
-                            );
+                                  final number =
+                                      (data[
+                                                  'vehicleNumber'] ??
+                                              '-')
+                                          .toString();
 
-                            final data =
-                                selected.data();
+                                  final type =
+                                      (data[
+                                                  'vehicleType'] ??
+                                              'Vehicle')
+                                          .toString();
 
-                            setState(() {
-                              _selectedVehicleId =
-                                  value;
-                              _selectedVehicleNumber =
-                                  (data[
-                                              'vehicleNumber'] ??
-                                          '-')
-                                      .toString();
-                            });
-                          },
-                          validator: (value) {
-                            if (value == null ||
-                                value.isEmpty) {
-                              return 'Select a vehicle';
-                            }
+                                  final brand =
+                                      (data[
+                                                  'brand'] ??
+                                              '')
+                                          .toString();
 
-                            return null;
-                          },
+                                  final model =
+                                      (data[
+                                                  'model'] ??
+                                              '')
+                                          .toString();
+
+                                  final details =
+                                      '$number • $type • $brand $model'
+                                          .trim();
+
+                                  return DropdownMenuItem<
+                                      String>(
+                                    value:
+                                        document.id,
+                                    child: SizedBox(
+                                      width:
+                                          MediaQuery.of(
+                                            context,
+                                          ).size.width -
+                                              100,
+                                      child: Text(
+                                        details,
+                                        overflow:
+                                            TextOverflow
+                                                .ellipsis,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ).toList(),
+                              onChanged:
+                                  (value) {
+                                if (value ==
+                                    null) {
+                                  return;
+                                }
+
+                                final selected =
+                                    vehicles.firstWhere(
+                                  (document) =>
+                                      document.id ==
+                                      value,
+                                );
+
+                                final data =
+                                    selected.data();
+
+                                setState(() {
+                                  _selectedVehicleId =
+                                      value;
+                                  _selectedVehicleNumber =
+                                      (data[
+                                                  'vehicleNumber'] ??
+                                              '-')
+                                          .toString();
+                                });
+                              },
+                            ),
+
+                            if (_selectedVehicleId !=
+                                null) ...[
+                              const SizedBox(
+                                  height: 8),
+                              Align(
+                                alignment:
+                                    Alignment
+                                        .centerRight,
+                                child: TextButton.icon(
+                                  onPressed: () {
+                                    setState(() {
+                                      _selectedVehicleId =
+                                          null;
+                                      _selectedVehicleNumber =
+                                          null;
+                                    });
+                                  },
+                                  icon: const Icon(
+                                    Icons.close,
+                                    size: 18,
+                                  ),
+                                  label: const Text(
+                                    'Clear Vehicle',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
                         );
                       },
                     ),
+
                     const SizedBox(height: 24),
+
+                    Card(
+                      color: Theme.of(context)
+                          .colorScheme
+                          .primaryContainer
+                          .withValues(alpha: 0.35),
+                      child: const Padding(
+                        padding:
+                            EdgeInsets.all(14),
+                        child: Row(
+                          crossAxisAlignment:
+                              CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                            ),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Driver will not get a separate login. The partner/owner manages the driver, vehicle assignment, availability and KYC from this app.',
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+
+                    const SizedBox(height: 24),
+
                     SizedBox(
                       height: 52,
                       child: FilledButton.icon(
@@ -510,13 +739,17 @@ class _AddDriverPageState
                         ),
                       ),
                     ),
+
                     const SizedBox(height: 20),
+
                     Text(
-                      'Driver KYC verification will be completed separately.',
-                      textAlign: TextAlign.center,
+                      'KYC verification will be completed separately.',
+                      textAlign:
+                          TextAlign.center,
                       style: TextStyle(
                         fontSize: 12,
-                        color: Colors.grey.shade600,
+                        color:
+                            Colors.grey.shade600,
                       ),
                     ),
                   ],
