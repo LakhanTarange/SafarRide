@@ -3,12 +3,18 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
     match /users/{userId} {
       allow create: if request.auth != null
         && request.auth.uid == userId;
 
       allow read: if request.auth != null
-        && request.auth.uid == userId;
+        && (request.auth.uid == userId || isAdmin());
 
       allow update: if request.auth != null
         && request.auth.uid == userId;
@@ -26,6 +32,7 @@ service cloud.firestore {
           || resource.data.partnerId == request.auth.uid
           || resource.data.driverId == request.auth.uid
           || resource.data.status == 'requested'
+          || isAdmin()
         );
 
       allow update: if request.auth != null
@@ -52,6 +59,7 @@ service cloud.firestore {
             && request.resource.data.status == 'completed'
             && request.resource.data.completedBy == request.auth.uid
           )
+          || isAdmin()
         );
 
       allow delete: if false;
@@ -62,10 +70,10 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid;
 
       allow read: if request.auth != null
-        && resource.data.ownerId == request.auth.uid;
+        && (resource.data.ownerId == request.auth.uid || isAdmin());
 
       allow update: if request.auth != null
-        && resource.data.ownerId == request.auth.uid;
+        && (resource.data.ownerId == request.auth.uid || isAdmin());
 
       allow delete: if false;
     }
@@ -82,6 +90,7 @@ service cloud.firestore {
             request.auth.token.email != null
             && resource.data.email == request.auth.token.email
           )
+          || isAdmin()
         );
 
       allow update: if request.auth != null
@@ -96,6 +105,7 @@ service cloud.firestore {
               'isAvailable'
             ])
           )
+          || isAdmin()
         );
 
       allow delete: if false;
@@ -108,7 +118,33 @@ service cloud.firestore {
       allow read: if request.auth != null;
 
       allow update: if request.auth != null
-        && resource.data.ownerId == request.auth.uid;
+        && (
+          resource.data.ownerId == request.auth.uid
+          || (
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+              'bookedSeats',
+              'passengers',
+              'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    match /complaints/{complaintId} {
+      allow create: if request.auth != null
+        && request.resource.data.customerId == request.auth.uid;
+
+      allow read: if request.auth != null
+        && (
+          resource.data.customerId == request.auth.uid
+          || resource.data.partnerId == request.auth.uid
+          || resource.data.driverId == request.auth.uid
+          || isAdmin()
+        );
+
+      allow update: if request.auth != null && isAdmin();
 
       allow delete: if false;
     }
