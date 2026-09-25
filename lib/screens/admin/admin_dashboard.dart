@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'vehicle_verification_page.dart';
+
 class AdminDashboard extends StatefulWidget {
   const AdminDashboard({super.key});
 
@@ -333,6 +335,20 @@ class _AdminDashboardState extends State<AdminDashboard> {
           'Admin • Complaints',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
+        actions: [
+          IconButton(
+            tooltip: 'Vehicle Verification',
+            icon: const Icon(Icons.directions_car_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const VehicleVerificationPage(),
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
         future: _firestore.collection('users').doc(user.uid).get(),
