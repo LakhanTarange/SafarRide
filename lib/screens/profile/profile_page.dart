@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import '../../config/app_config.dart';
 import '../../services/auth_service.dart';
+import '../admin/admin_dashboard.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -287,6 +288,12 @@ class _ProfilePageState extends State<ProfilePage> {
       case 'partner':
         return 'Partner';
 
+      case 'driver':
+        return 'Driver';
+
+      case 'admin':
+        return 'Admin';
+
       default:
         return 'User';
     }
@@ -417,6 +424,35 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    if (_role == 'admin')
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 18),
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: FilledButton.icon(
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      const AdminDashboard(),
+                                ),
+                              );
+                            },
+                            icon: const Icon(
+                              Icons.admin_panel_settings_outlined,
+                            ),
+                            label: const Text(
+                              'Open Admin Panel',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                     SizedBox(
                       width: double.infinity,
                       height: 52,
