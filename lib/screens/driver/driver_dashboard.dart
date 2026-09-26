@@ -887,44 +887,114 @@ class _DriverTripsPage extends StatelessWidget {
     BuildContext context,
     String bookingDocumentId,
   ) async {
-    final bool? confirmed = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          title: const Text('Complete Trip'),
-          content: const Text(
-            'Are you sure you want to mark this trip as completed?',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, false);
-              },
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () {
-                Navigator.pop(dialogContext, true);
-              },
-              child: const Text('Complete'),
-            ),
-          ],
-        );
-      },
-    );
-
-    if (confirmed != true) {
-      return;
-    }
-
-    if (!context.mounted) {
-      return;
-    }
-
     final User? user = FirebaseAuth.instance.currentUser;
 
     if (user == null) {
       _showMessage(context, 'Please login again.');
+      return;
+    }
+
+    final TextEditingController fareController = TextEditingController();
+    String paymentMethod = 'cash';
+
+    final Map<String, dynamic>? result =
+        await showDialog<Map<String, dynamic>>(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: const Text('Complete Trip'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Enter the final fare collected for this trip.',
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: fareController,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: const InputDecoration(
+                        labelText: 'Fare Amount',
+                        prefixIcon: Icon(Icons.currency_rupee),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    const Text(
+                      'Payment Method',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Cash'),
+                      value: 'cash',
+                      groupValue: paymentMethod,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          paymentMethod = value ?? 'cash';
+                        });
+                      },
+                    ),
+                    RadioListTile<String>(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Online / UPI'),
+                      value: 'online',
+                      groupValue: paymentMethod,
+                      onChanged: (value) {
+                        setDialogState(() {
+                          paymentMethod = value ?? 'cash';
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(dialogContext);
+                  },
+                  child: const Text('Cancel'),
+                ),
+                FilledButton(
+                  onPressed: () {
+                    final double? fare =
+                        double.tryParse(fareController.text.trim());
+
+                    if (fare == null || fare <= 0) {
+                      ScaffoldMessenger.of(dialogContext).showSnackBar(
+                        const SnackBar(
+                          content: Text('Enter a valid fare amount.'),
+                        ),
+                      );
+                      return;
+                    }
+
+                    Navigator.pop(dialogContext, {
+                      'fare': fare,
+                      'paymentMethod': paymentMethod,
+                    });
+                  },
+                  child: const Text('Complete'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    fareController.dispose();
+
+    if (result == null) {
+      return;
+    }
+
+    if (!context.mounted) {
       return;
     }
 
@@ -933,6 +1003,9 @@ class _DriverTripsPage extends StatelessWidget {
         'status': 'completed',
         'completedBy': user.uid,
         'completedAt': FieldValue.serverTimestamp(),
+        'fare': result['fare'],
+        'paymentStatus': 'collected',
+        'paymentMethod': result['paymentMethod'],
         'updatedAt': FieldValue.serverTimestamp(),
       });
 
