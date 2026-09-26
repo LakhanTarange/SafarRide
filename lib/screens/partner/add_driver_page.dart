@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../config/app_config.dart';
 
@@ -371,6 +372,10 @@ class _AddDriverPageState extends State<AddDriverPage> {
                           _phoneController,
                       keyboardType:
                           TextInputType.phone,
+                      maxLength: 10,
+                      inputFormatters: [
+                        FilteringTextInputFormatter.digitsOnly,
+                      ],
                       decoration:
                           const InputDecoration(
                         labelText: 'Mobile Number',
@@ -378,6 +383,7 @@ class _AddDriverPageState extends State<AddDriverPage> {
                             '10 digit mobile number',
                         prefixIcon:
                             Icon(Icons.phone),
+                        counterText: '',
                       ),
                       validator: (value) {
                         final phone =
