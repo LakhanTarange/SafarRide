@@ -6,6 +6,7 @@ import 'config/theme.dart';
 import 'firebase_options.dart';
 import 'screens/admin/admin_dashboard.dart';
 import 'screens/admin/vehicle_verification_page.dart';
+import 'screens/driver/driver_dashboard.dart';
 import 'screens/auth/welcome_page.dart';
 import 'screens/customer/customer_dashboard.dart';
 import 'screens/partner/partner_dashboard.dart';
@@ -42,6 +43,8 @@ class SafarRideApp extends StatelessWidget {
             const AdminDashboard(),
         '/admin-vehicle-verification': (context) =>
             const VehicleVerificationPage(),
+        '/driver-dashboard': (context) =>
+            const DriverDashboard(),
       },
     );
   }
