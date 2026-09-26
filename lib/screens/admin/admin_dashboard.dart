@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'complaint_history_page.dart';
 import 'vehicle_verification_page.dart';
 
 class AdminDashboard extends StatefulWidget {
@@ -336,6 +337,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Complaint History',
+            icon: const Icon(Icons.history),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ComplaintHistoryPage(),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Vehicle Verification',
             icon: const Icon(Icons.directions_car_outlined),
