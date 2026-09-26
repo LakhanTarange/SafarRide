@@ -70,7 +70,11 @@ service cloud.firestore {
         && request.resource.data.ownerId == request.auth.uid;
 
       allow read: if request.auth != null
-        && (resource.data.ownerId == request.auth.uid || isAdmin());
+        && (
+          resource.data.ownerId == request.auth.uid
+          || isAdmin()
+          || resource.data.status == 'active'
+        );
 
       allow update: if request.auth != null
         && (resource.data.ownerId == request.auth.uid || isAdmin());
