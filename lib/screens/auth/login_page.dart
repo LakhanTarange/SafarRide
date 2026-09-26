@@ -135,6 +135,12 @@ class _LoginPageState extends State<LoginPage> {
           '/driver-dashboard',
           (route) => false,
         );
+      } else if (role == 'admin') {
+        Navigator.pushNamedAndRemoveUntil(
+          context,
+          '/admin-dashboard',
+          (route) => false,
+        );
       } else {
         await _authService.logout();
 
