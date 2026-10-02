@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../profile/profile_page.dart';
 import 'complaint_history_page.dart';
 import 'vehicle_verification_page.dart';
 
@@ -337,6 +338,18 @@ class _AdminDashboardState extends State<AdminDashboard> {
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Profile',
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const ProfilePage(),
+                ),
+              );
+            },
+          ),
           IconButton(
             tooltip: 'Complaint History',
             icon: const Icon(Icons.history),
