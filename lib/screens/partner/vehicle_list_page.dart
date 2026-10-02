@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 import '../../config/app_config.dart';
 import 'add_vehicle_page.dart';
@@ -434,6 +435,41 @@ class _VehicleListPageState
     }
   }
 
+  Future<bool> _ensureLocationPermission() async {
+    final bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+
+    if (!serviceEnabled) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location service is turned off. Please enable it.'),
+          ),
+        );
+      }
+      return false;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+
+    if (permission == LocationPermission.denied ||
+        permission == LocationPermission.deniedForever) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Location permission is required to mark available.'),
+          ),
+        );
+      }
+      return false;
+    }
+
+    return true;
+  }
+
   Future<void> _toggleVehicleAvailability({
     required String vehicleId,
     required String? driverId,
@@ -442,24 +478,58 @@ class _VehicleListPageState
     try {
       final bool newAvailability = !currentAvailability;
 
+      double? latitude;
+      double? longitude;
+
+      if (newAvailability) {
+        final bool permissionOk = await _ensureLocationPermission();
+
+        if (!permissionOk) return;
+
+        final Position position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+          ),
+        );
+
+        latitude = position.latitude;
+        longitude = position.longitude;
+      }
+
       final WriteBatch batch = _firestore.batch();
 
       final DocumentReference<Map<String, dynamic>> vehicleReference =
           _firestore.collection('vehicles').doc(vehicleId);
 
-      batch.update(vehicleReference, {
+      final Map<String, dynamic> vehicleUpdate = {
         'isAvailable': newAvailability,
         'updatedAt': FieldValue.serverTimestamp(),
-      });
+      };
+
+      if (latitude != null && longitude != null) {
+        vehicleUpdate['latitude'] = latitude;
+        vehicleUpdate['longitude'] = longitude;
+        vehicleUpdate['locationUpdatedAt'] = FieldValue.serverTimestamp();
+      }
+
+      batch.update(vehicleReference, vehicleUpdate);
 
       if (driverId != null && driverId.isNotEmpty) {
         final DocumentReference<Map<String, dynamic>> driverReference =
             _firestore.collection('drivers').doc(driverId);
 
-        batch.update(driverReference, {
+        final Map<String, dynamic> driverUpdate = {
           'isAvailable': newAvailability,
           'updatedAt': FieldValue.serverTimestamp(),
-        });
+        };
+
+        if (latitude != null && longitude != null) {
+          driverUpdate['latitude'] = latitude;
+          driverUpdate['longitude'] = longitude;
+          driverUpdate['locationUpdatedAt'] = FieldValue.serverTimestamp();
+        }
+
+        batch.update(driverReference, driverUpdate);
       }
 
       await batch.commit();
