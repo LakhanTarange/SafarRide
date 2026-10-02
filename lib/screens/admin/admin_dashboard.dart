@@ -344,7 +344,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => const ComplaintHistoryPage(),
+                  builder: (context) => ComplaintHistoryPage(),
                 ),
               );
             },

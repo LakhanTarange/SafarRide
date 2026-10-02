@@ -2,7 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 class ComplaintHistoryPage extends StatelessWidget {
-  const ComplaintHistoryPage({super.key});
+  ComplaintHistoryPage({super.key});
 
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
