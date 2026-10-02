@@ -434,6 +434,56 @@ class _VehicleListPageState
     }
   }
 
+  Future<void> _toggleVehicleAvailability({
+    required String vehicleId,
+    required String? driverId,
+    required bool currentAvailability,
+  }) async {
+    try {
+      final bool newAvailability = !currentAvailability;
+
+      final WriteBatch batch = _firestore.batch();
+
+      final DocumentReference<Map<String, dynamic>> vehicleReference =
+          _firestore.collection('vehicles').doc(vehicleId);
+
+      batch.update(vehicleReference, {
+        'isAvailable': newAvailability,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      if (driverId != null && driverId.isNotEmpty) {
+        final DocumentReference<Map<String, dynamic>> driverReference =
+            _firestore.collection('drivers').doc(driverId);
+
+        batch.update(driverReference, {
+          'isAvailable': newAvailability,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      }
+
+      await batch.commit();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            newAvailability
+                ? 'Vehicle marked available. Visible to customers now.'
+                : 'Vehicle marked unavailable.',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Unable to update availability: $e')),
+      );
+    }
+  }
+
   Future<void> _showVehicleOptions({
     required String vehicleId,
     required String vehicleNumber,
@@ -1009,6 +1059,30 @@ class _VehicleListPageState
             const SizedBox(height: 12),
 
             _availabilityCard(data),
+
+            const SizedBox(height: 10),
+
+            if (hasDriver)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () {
+                    _toggleVehicleAvailability(
+                      vehicleId: vehicleId,
+                      driverId: driverId,
+                      currentAvailability: isAvailable,
+                    );
+                  },
+                  icon: Icon(
+                    isAvailable
+                        ? Icons.visibility_off_outlined
+                        : Icons.visibility_outlined,
+                  ),
+                  label: Text(
+                    isAvailable ? 'Mark Unavailable' : 'Mark Available',
+                  ),
+                ),
+              ),
 
             const SizedBox(height: 12),
 
